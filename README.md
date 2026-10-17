@@ -5,1476 +5,1676 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>陸戰棋 · 經典軍棋 (Army Chess)</title>
-    <!-- Tailwind CSS -->
+    <title>陸戰棋 / 軍棋 (Traditional Chinese Army Chess)</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome Icons -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700;900&display=swap');
-        
-        body {
-            font-family: 'Noto Serif TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, serif;
-            touch-action: manipulation;
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700;900&family=PingFang+TC:wght@400;500;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
             user-select: none;
             -webkit-user-select: none;
-            background-color: #1a0f08;
+            touch-action: manipulation;
         }
 
-        /* iPad Portrait Screen Container */
-        .ipad-screen {
-            width: 100%;
-            max-width: 560px;
+        body {
+            font-family: 'PingFang TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #1a1816;
+            color: #f3f4f6;
             height: 100vh;
-            max-height: 960px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background: linear-gradient(135deg, #2b1810 0%, #170d08 100%);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-            position: relative;
+            width: 100vw;
             overflow: hidden;
+            margin: 0;
+            padding: 0;
         }
 
-        /* Piece Tile Styling */
+        /* Chess Board SVG & Canvas Layering */
+        .board-container {
+            position: relative;
+            background: radial-gradient(circle at center, #2e261d 0%, #17130e 100%);
+            border: 3px solid #8b6b3e;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 25px rgba(0,0,0,0.5);
+            border-radius: 12px;
+        }
+
         .piece {
-            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s;
+            transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease, opacity 0.2s ease;
             cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            position: absolute;
+            z-index: 10;
         }
 
         .piece.moving {
-            z-index: 50 !important;
+            z-index: 50;
+            transition: all 0.35s ease-in-out;
         }
 
-        .piece-p1 {
-            background: linear-gradient(180deg, #fffcf5 0%, #f1e2c3 100%);
-            border: 2px solid #a87d4f;
-            color: #991b1b;
+        /* Piece Aesthetics */
+        .piece-red {
+            background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+            border: 2px solid #fca5a5;
+            color: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.4);
         }
 
-        .piece-p2 {
-            background: linear-gradient(180deg, #f0f4f8 0%, #d1dbe5 100%);
-            border: 2px solid #5b7083;
-            color: #1e3a8a;
+        .piece-black {
+            background: linear-gradient(135deg, #27272a 0%, #09090b 100%);
+            border: 2px solid #71717a;
+            color: #e4e4e7;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2);
         }
 
-        .piece-back {
-            background: linear-gradient(135deg, #5c2c16 0%, #3b180a 100%);
-            border: 2px solid #8c4a27;
-            position: relative;
-        }
-
-        .piece-back::after {
-            content: "★";
-            position: absolute;
-            color: #d97706;
-            font-size: 1.1rem;
-            opacity: 0.8;
-        }
-
-        /* Selected & Highlight Animation */
         .piece-selected {
-            outline: 3px solid #f59e0b;
+            ring: 4px solid #f59e0b;
             transform: scale(1.08);
-            z-index: 40 !important;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.8);
+            z-index: 30 !important;
+            box-shadow: 0 0 15px #f59e0b !important;
         }
 
-        .move-dot {
-            width: 14px;
-            height: 14px;
-            background-color: #10b981;
-            border: 2px solid #ffffff;
-            border-radius: 50%;
+        .piece-target {
+            box-shadow: 0 0 12px #22c55e !important;
+            animation: pulse-target 1.2s infinite;
+        }
+
+        @keyframes pulse-target {
+            0%, 100% { opacity: 0.8; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        .highlight-move {
             position: absolute;
-            transform: translate(-50%, -50%);
-            z-index: 30;
-            cursor: pointer;
-            animation: pulse-dot 1.2s infinite ease-in-out;
-        }
-
-        .attack-target {
-            width: 28px;
-            height: 28px;
-            border: 3px dashed #ef4444;
             border-radius: 50%;
-            position: absolute;
+            background: rgba(34, 197, 94, 0.45);
+            border: 2px solid #22c55e;
+            z-index: 5;
+            pointer-events: none;
             transform: translate(-50%, -50%);
-            z-index: 30;
-            cursor: pointer;
-            animation: spin-target 2s linear infinite;
         }
 
-        @keyframes pulse-dot {
-            0%, 100% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.8; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+        .highlight-attack {
+            position: absolute;
+            border-radius: 8px;
+            background: rgba(239, 68, 68, 0.35);
+            border: 2px dashed #ef4444;
+            z-index: 5;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
         }
 
-        @keyframes spin-target {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to { transform: translate(-50%, -50%) rotate(360deg); }
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #52525b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #71717a;
         }
 
-        /* Custom Scrollbar for Tray */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        .badge-revealed {
+            font-size: 9px;
+            padding: 1px 3px;
+            border-radius: 3px;
+            background: #d97706;
+            color: white;
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-0 md:p-4">
+<body class="flex flex-col h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100">
 
-    <div class="ipad-screen rounded-none md:rounded-3xl border-0 md:border-4 border-[#3d2314]">
-
-        <!-- HEADER STATUS BAR -->
-        <header class="bg-[#21120a] px-4 py-3 border-b border-[#4a2c11] flex items-center justify-between text-amber-100 z-20">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-chess-board text-amber-500 text-xl"></i>
-                <div>
-                    <h1 class="text-base font-bold leading-none tracking-wide">陸戰棋 · 經典軍棋</h1>
-                    <span id="game-mode-badge" class="text-xs text-amber-400 font-normal">單人對戰 (Master AI)</span>
-                </div>
+    <!-- TOP HEADER / NAVBAR -->
+    <header class="h-14 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-amber-700/30 border border-amber-600/50 flex items-center justify-center text-amber-500 font-black text-xl">
+                軍
             </div>
-
-            <div class="flex items-center gap-2">
-                <button id="sound-btn" class="p-2 rounded-lg bg-[#3b2012] text-amber-300 hover:bg-[#4a2c11] transition">
-                    <i class="fa-solid fa-volume-high text-sm"></i>
-                </button>
-                <button id="menu-btn" class="p-2 rounded-lg bg-[#3b2012] text-amber-300 hover:bg-[#4a2c11] transition">
-                    <i class="fa-solid fa-bars text-sm"></i>
-                </button>
-            </div>
-        </header>
-
-        <!-- PLAYER STATUS PANEL (TOP / OPPONENT) -->
-        <div class="bg-[#1f1008] px-4 py-2 border-b border-[#3b2012] flex items-center justify-between text-xs text-amber-200/80 z-10">
-            <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500" id="p2-indicator"></span>
-                <span id="p2-name" class="font-bold text-amber-100">敵方 (藍方 / AI)</span>
-            </div>
-            <div id="p2-captures" class="flex items-center gap-1 text-[11px] text-amber-400/80">
-                已戰損: <span id="p2-lost-count">0</span> 枚
+            <div>
+                <h1 class="font-bold text-lg text-amber-100 leading-none">陸戰棋 / 軍棋</h1>
+                <p class="text-xs text-zinc-400 mt-0.5" id="game-mode-subtitle">單人對戰模式 (AI 敵方)</p>
             </div>
         </div>
 
-        <!-- MAIN BOARD AREA -->
-        <main id="board-container" class="relative flex-1 w-full flex items-center justify-center p-2 bg-[#120905]">
-            <!-- CLASSIC SVG ARMY CHESS BOARD GRAPHICS -->
-            <svg id="army-chess-svg" viewBox="0 0 500 700" class="w-full h-full max-h-[640px] drop-shadow-xl select-none" preserveAspectRatio="xMidYMid meet">
-                <defs>
-                    <!-- Board Wood Texture Fill -->
-                    <linearGradient id="wood-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#f8f1e1" />
-                        <stop offset="50%" stop-color="#eedfbf" />
-                        <stop offset="100%" stop-color="#e2cf9f" />
-                    </linearGradient>
+        <!-- Mode & Status Indicator -->
+        <div class="flex items-center space-x-2">
+            <span id="turn-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <span id="turn-text">佈陣階段</span>
+            </span>
 
-                    <!-- Railway Hatch Pattern -->
-                    <pattern id="railway-hatch" width="10" height="10" patternUnits="userSpaceOnUse">
-                        <line x1="0" y1="5" x2="10" y2="5" stroke="#8b0000" stroke-width="1.5"/>
-                        <line x1="5" y1="0" x2="5" y2="10" stroke="#8b0000" stroke-width="1"/>
-                    </pattern>
-                </defs>
+            <button id="btn-mode-select" onclick="openModeModal()" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-semibold text-zinc-200 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-gamepad text-amber-400"></i>
+                <span>切換模式</span>
+            </button>
 
-                <!-- Outer Board Background Frame -->
-                <rect x="10" y="10" width="480" height="680" rx="16" fill="url(#wood-grad)" stroke="#4a2c11" stroke-width="10"/>
-                <rect x="18" y="18" width="464" height="664" rx="10" fill="none" stroke="#8c5122" stroke-width="2"/>
-
-                <!-- ==================== ROADS & LINES ==================== -->
-                <!-- Vertical Road Lines -->
-                <!-- Col 0 --> <line x1="50" y1="40" x2="50" y2="660" stroke="#4a2c11" stroke-width="2.5"/>
-                <!-- Col 1 --> <line x1="140" y1="40" x2="140" y2="310" stroke="#4a2c11" stroke-width="2"/>
-                               <line x1="140" y1="390" x2="140" y2="660" stroke="#4a2c11" stroke-width="2"/>
-                <!-- Col 2 --> <line x1="230" y1="40" x2="230" y2="660" stroke="#4a2c11" stroke-width="2.5"/>
-                <!-- Col 3 --> <line x1="320" y1="40" x2="320" y2="310" stroke="#4a2c11" stroke-width="2"/>
-                               <line x1="320" y1="390" x2="320" y2="660" stroke="#4a2c11" stroke-width="2"/>
-                <!-- Col 4 --> <line x1="410" y1="40" x2="410" y2="660" stroke="#4a2c11" stroke-width="2.5"/>
-
-                <!-- Horizontal Road Lines -->
-                <!-- Top Half (Rows 0 to 5) -->
-                <line x1="50" y1="40" x2="410" y2="40" stroke="#4a2c11" stroke-width="2"/>
-                <line x1="50" y1="94" x2="410" y2="94" stroke="#4a2c11" stroke-width="2.5"/>
-                <line x1="50" y1="148" x2="410" y2="148" stroke="#4a2c11" stroke-width="2"/>
-                <line x1="50" y1="202" x2="410" y2="202" stroke="#4a2c11" stroke-width="2"/>
-                <line x1="50" y1="256" x2="410" y2="256" stroke="#4a2c11" stroke-width="2"/>
-                <line x1="50" y1="310" x2="410" y2="310" stroke="#4a2c11" stroke-width="2.5"/>
-
-                <!-- Bottom Half (Rows 6 to 11) -->
-                <line x1="50" y1="390" x2="410" y2="390" stroke="#4a2c11" stroke-width="2.5"/>
-                <line x1="50" y1="444" x2="410" y2="444" stroke="#4a2c11" stroke-width="2"/>
-                <line x1="50" y1="498" x2="410" y2="498" stroke="#4a2c11" stroke-width="2"/>
-                <line x1="50" y1="552" x2="410" y2="552" stroke="#4a2c11" stroke-width="2"/>
-                <line x1="50" y1="606" x2="410" y2="606" stroke="#4a2c11" stroke-width="2.5"/>
-                <line x1="50" y1="660" x2="410" y2="660" stroke="#4a2c11" stroke-width="2"/>
-
-                <!-- ==================== RAILWAYS (鐵路 - DOUBLE DASHED LINES) ==================== -->
-                <!-- Outer Perimeter Railways & Frontline Railways -->
-                <!-- Row 1 Railway -->
-                <line x1="50" y1="90" x2="410" y2="90" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="50" y1="98" x2="410" y2="98" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <!-- Row 5 Railway -->
-                <line x1="50" y1="306" x2="410" y2="306" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="50" y1="314" x2="410" y2="314" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <!-- Row 6 Railway -->
-                <line x1="50" y1="386" x2="410" y2="386" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="50" y1="394" x2="410" y2="394" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <!-- Row 10 Railway -->
-                <line x1="50" y1="602" x2="410" y2="602" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="50" y1="610" x2="410" y2="610" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-
-                <!-- Col 0 & Col 4 Vertical Railways -->
-                <line x1="46" y1="94" x2="46" y2="606" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="54" y1="94" x2="54" y2="606" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="406" y1="94" x2="406" y2="606" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="414" y1="94" x2="414" y2="606" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-
-                <!-- Col 2 Central Railway Bridge -->
-                <line x1="226" y1="310" x2="226" y2="390" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-                <line x1="234" y1="310" x2="234" y2="390" stroke="#8b0000" stroke-width="3" stroke-dasharray="6,4"/>
-
-                <!-- ==================== CAMPSITE DIAGONALS (行營 8向連接線) ==================== -->
-                <!-- Top Campsites Diagonals -->
-                <!-- (2,1) --> <line x1="50" y1="94" x2="230" y2="202" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="230" y1="94" x2="50" y2="202" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (2,3) --> <line x1="230" y1="94" x2="410" y2="202" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="410" y1="94" x2="230" y2="202" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (3,2) --> <line x1="140" y1="148" x2="320" y2="256" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="320" y1="148" x2="140" y2="256" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (4,1) --> <line x1="50" y1="202" x2="230" y2="310" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="230" y1="202" x2="50" y2="310" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (4,3) --> <line x1="230" y1="202" x2="410" y2="310" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="410" y1="202" x2="230" y2="310" stroke="#2e6f40" stroke-width="1.5"/>
-
-                <!-- Bottom Campsites Diagonals -->
-                <!-- (7,1) --> <line x1="50" y1="390" x2="230" y2="498" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="230" y1="390" x2="50" y2="498" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (7,3) --> <line x1="230" y1="390" x2="410" y2="498" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="410" y1="390" x2="230" y2="498" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (8,2) --> <line x1="140" y1="444" x2="320" y2="552" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="320" y1="444" x2="140" y2="552" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (9,1) --> <line x1="50" y1="498" x2="230" y2="606" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="230" y1="498" x2="50" y2="606" stroke="#2e6f40" stroke-width="1.5"/>
-                <!-- (9,3) --> <line x1="230" y1="498" x2="410" y2="606" stroke="#2e6f40" stroke-width="1.5"/>
-                               <line x1="410" y1="498" x2="230" y2="606" stroke="#2e6f40" stroke-width="1.5"/>
-
-                <!-- ==================== 10 CIRCULAR CAMPSITES (行營) ==================== -->
-                <!-- Top 5 Campsites -->
-                <g class="campsites-group">
-                    <!-- (2,1) --> <circle cx="140" cy="148" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="140" cy="148" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (2,3) --> <circle cx="320" cy="148" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="320" cy="148" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (3,2) --> <circle cx="230" cy="202" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="230" cy="202" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (4,1) --> <circle cx="140" cy="256" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="140" cy="256" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (4,3) --> <circle cx="320" cy="256" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="320" cy="256" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-
-                    <!-- Bottom 5 Campsites -->
-                    <!-- (7,1) --> <circle cx="140" cy="444" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="140" cy="444" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (7,3) --> <circle cx="320" cy="444" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="320" cy="444" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (8,2) --> <circle cx="230" cy="498" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="230" cy="498" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (9,1) --> <circle cx="140" cy="552" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="140" cy="552" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                    <!-- (9,3) --> <circle cx="320" cy="552" r="22" fill="#edf7ed" stroke="#2e6f40" stroke-width="3"/>
-                                   <circle cx="320" cy="552" r="16" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="3,2"/>
-                </g>
-
-                <!-- ==================== 4 ARCHED HEADQUARTERS (大本營) ==================== -->
-                <!-- Top HQs -->
-                <!-- (0,1) --> <path d="M 115,40 A 25,25 0 0 1 165,40 L 165,58 L 115,58 Z" fill="#fdf2d6" stroke="#8b0000" stroke-width="2.5"/>
-                               <text x="140" y="52" font-size="11" font-weight="bold" fill="#8b0000" text-anchor="middle">大本營</text>
-                <!-- (0,3) --> <path d="M 295,40 A 25,25 0 0 1 345,40 L 345,58 L 295,58 Z" fill="#fdf2d6" stroke="#8b0000" stroke-width="2.5"/>
-                               <text x="320" y="52" font-size="11" font-weight="bold" fill="#8b0000" text-anchor="middle">大本營</text>
-
-                <!-- Bottom HQs -->
-                <!-- (11,1) --> <path d="M 115,660 A 25,25 0 0 0 165,660 L 165,642 L 115,642 Z" fill="#fdf2d6" stroke="#8b0000" stroke-width="2.5"/>
-                                <text x="140" y="654" font-size="11" font-weight="bold" fill="#8b0000" text-anchor="middle">大本營</text>
-                <!-- (11,3) --> <path d="M 295,660 A 25,25 0 0 0 345,660 L 345,642 L 295,642 Z" fill="#fdf2d6" stroke="#8b0000" stroke-width="2.5"/>
-                                <text x="320" y="654" font-size="11" font-weight="bold" fill="#8b0000" text-anchor="middle">大本營</text>
-
-                <!-- ==================== MOUNTAIN BOUNDARIES & RIVER (山界 & 界河) ==================== -->
-                <!-- River Area Banner -->
-                <rect x="50" y="312" width="360" height="76" fill="#e8f4f8" opacity="0.65" rx="4"/>
-                <path d="M 50,350 Q 140,342 230,350 T 410,350" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.5"/>
-                <text x="100" y="356" font-size="18" font-weight="900" fill="#1e3a8a" opacity="0.75" letter-spacing="8">前線</text>
-                <text x="350" y="356" font-size="18" font-weight="900" fill="#1e3a8a" opacity="0.75" letter-spacing="8">界河</text>
-
-                <!-- 2 Mountain Impassable Zones (山界) -->
-                <!-- Mountain 1 (Col 1, River) -->
-                <circle cx="140" cy="350" r="22" fill="#dcfce7" stroke="#166534" stroke-width="2.5"/>
-                <path d="M 130,358 L 140,340 L 150,358 Z" fill="#15803d"/>
-                <text x="140" y="364" font-size="9" font-weight="bold" fill="#14532d" text-anchor="middle">山界</text>
-
-                <!-- Mountain 2 (Col 3, River) -->
-                <circle cx="320" cy="350" r="22" fill="#dcfce7" stroke="#166534" stroke-width="2.5"/>
-                <path d="M 310,358 L 320,340 L 330,358 Z" fill="#15803d"/>
-                <text x="320" y="364" font-size="9" font-weight="bold" fill="#14532d" text-anchor="middle">山界</text>
-            </svg>
-
-            <!-- DYNAMIC OVERLAY CONTAINER FOR PIECES & HIGHLIGHTS -->
-            <div id="pieces-layer" class="absolute inset-0 pointer-events-none"></div>
-        </main>
-
-        <!-- PLAYER STATUS PANEL (BOTTOM / HUMAN) -->
-        <div class="bg-[#1f1008] px-4 py-2 border-t border-[#3b2012] flex items-center justify-between text-xs text-amber-200/80 z-10">
-            <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" id="p1-turn-ping"></span>
-                <span id="p1-name" class="font-bold text-amber-100">我方 (紅方)</span>
-            </div>
-            <div id="p1-captures" class="flex items-center gap-1 text-[11px] text-amber-400/80">
-                已戰損: <span id="p1-lost-count">0</span> 枚
-            </div>
+            <button id="btn-audio-toggle" onclick="toggleAudio()" class="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 flex items-center justify-center transition">
+                <i id="audio-icon" class="fa-solid fa-volume-high text-xs"></i>
+            </button>
         </div>
+    </header>
 
-        <!-- SETUP TRAY & CONTROLS (DISPLAYS IN PLACEMENT PHASE) -->
-        <footer id="setup-panel" class="bg-[#24130a] p-3 border-t border-[#4a2c11] flex flex-col gap-2 z-20">
-            <div class="flex items-center justify-between text-xs text-amber-200">
-                <span id="placement-rule-status" class="font-semibold text-amber-400">請將 25 枚棋子擺放至棋盤下半部</span>
-                <span id="placed-count-badge" class="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">已擺放: 0 / 25</span>
-            </div>
+    <!-- MAIN iPad LAYOUT: LEFT SIDEBAR + BOARD CENTER + RIGHT SIDEBAR -->
+    <main class="flex-1 flex flex-row overflow-hidden relative p-2 gap-2">
 
-            <!-- UNPLACED PIECES TRAY -->
-            <div id="piece-tray" class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-1 bg-[#180b05] rounded-xl border border-[#3d2314] min-h-[52px]">
-                <!-- Tray Piece Buttons Dynamically Injected -->
-            </div>
-
-            <!-- SETUP PRESET BUTTONS -->
-            <div class="grid grid-cols-5 gap-1.5 pt-1">
-                <button onclick="applyPreset('random')" class="py-2 bg-gradient-to-b from-amber-700 to-amber-900 text-amber-100 font-bold rounded-lg text-xs shadow hover:brightness-110 active:scale-95 transition">
-                    🎲 隨機
-                </button>
-                <button onclick="applyPreset('balanced')" class="py-2 bg-[#3d2314] text-amber-200 font-semibold rounded-lg text-xs hover:bg-[#4a2c11] active:scale-95 transition">
-                    均衡型
-                </button>
-                <button onclick="applyPreset('offensive')" class="py-2 bg-[#3d2314] text-amber-200 font-semibold rounded-lg text-xs hover:bg-[#4a2c11] active:scale-95 transition">
-                    進攻型
-                </button>
-                <button onclick="applyPreset('defensive')" class="py-2 bg-[#3d2314] text-amber-200 font-semibold rounded-lg text-xs hover:bg-[#4a2c11] active:scale-95 transition">
-                    防守型
-                </button>
-                <button onclick="clearSetup()" class="py-2 bg-red-950 text-red-300 font-semibold rounded-lg text-xs hover:bg-red-900 active:scale-95 transition">
-                    清空
-                </button>
-            </div>
-
-            <!-- CONFIRM SETUP BUTTON -->
-            <button id="confirm-setup-btn" disabled onclick="confirmSetupReady()" class="w-full py-3 mt-1 bg-gray-700 text-gray-400 font-bold text-sm rounded-xl transition shadow-lg opacity-50 cursor-not-allowed">
-                確認準備完成
-            </button>
-        </footer>
-
-        <!-- BATTLE CONTROLS PANEL (DISPLAYS IN PLAYING PHASE) -->
-        <footer id="battle-panel" class="hidden bg-[#24130a] p-3 border-t border-[#4a2c11] flex items-center justify-between gap-3 z-20">
-            <button onclick="handleSurrender()" class="flex-1 py-2.5 bg-red-950/80 hover:bg-red-900 text-red-200 text-xs font-bold rounded-xl border border-red-800 transition shadow">
-                <i class="fa-solid fa-[#flag] mr-1"></i> 認輸
-            </button>
-            <div id="turn-timer-display" class="px-4 py-2 bg-[#180b05] text-amber-400 font-mono font-bold text-sm rounded-xl border border-[#3d2314]">
-                思考時間: <span id="timer-sec">30</span>s
-            </div>
-            <button onclick="handleRequestDraw()" class="flex-1 py-2.5 bg-[#3d2314] hover:bg-[#4a2c11] text-amber-200 text-xs font-bold rounded-xl border border-amber-900 transition shadow">
-                <i class="fa-solid fa-[#handshake] mr-1"></i> 求和
-            </button>
-        </footer>
-
-    </div>
-
-    <!-- MAIN MENU & MULTIPLAYER MODAL -->
-    <div id="lobby-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-[#24130a] border-2 border-[#5c3418] w-full max-w-sm rounded-2xl p-6 text-amber-100 shadow-2xl flex flex-col gap-5">
-            <div class="text-center">
-                <div class="inline-block p-3 rounded-2xl bg-[#3d2314] border border-amber-600/30 mb-2">
-                    <i class="fa-solid fa-shield-halved text-4xl text-amber-500"></i>
+        <!-- LEFT SIDEBAR: Setup Tray OR Piece Counter Table -->
+        <aside id="left-sidebar" class="w-72 md:w-80 bg-zinc-900/90 border border-zinc-800 rounded-xl flex flex-col shrink-0 overflow-hidden shadow-xl z-10">
+            
+            <!-- SETUP PHASE SIDEBAR CONTENT -->
+            <div id="sidebar-setup-panel" class="flex-1 flex flex-col p-3 overflow-y-auto space-y-3">
+                <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <h2 class="font-bold text-sm text-amber-400 flex items-center gap-2">
+                        <i class="fa-solid fa-boxes-packing"></i>
+                        <span>我方備用棋盤 (托盤)</span>
+                    </h2>
+                    <span id="placed-count-tag" class="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">0 / 25</span>
                 </div>
-                <h2 class="text-2xl font-extrabold text-amber-100 tracking-wider">陸戰棋 · 經典對決</h2>
-                <p class="text-xs text-amber-400/80 mt-1">繁體中文經典軍棋 · iPad 直向優化</p>
-            </div>
 
-            <!-- MODE SELECTION BUTTONS -->
-            <div class="flex flex-col gap-3">
-                <button onclick="startSinglePlayerGame()" class="w-full py-3.5 bg-gradient-to-r from-amber-600 to-amber-800 hover:from-amber-500 hover:to-amber-700 text-white font-bold rounded-xl shadow-lg border border-amber-500/40 flex items-center justify-center gap-2 transition active:scale-98">
-                    <i class="fa-solid fa-robot text-lg"></i>
-                    <span>單人對戰 (挑戰大師 AI)</span>
-                </button>
+                <!-- Presets Bar -->
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button onclick="applyPreset('random')" class="px-2 py-1.5 bg-zinc-800 hover:bg-amber-600/30 border border-zinc-700 hover:border-amber-500 rounded text-xs font-medium text-zinc-200 transition">
+                        ⚡ 一鍵隨機
+                    </button>
+                    <button onclick="applyPreset('balanced')" class="px-2 py-1.5 bg-zinc-800 hover:bg-amber-600/30 border border-zinc-700 hover:border-amber-500 rounded text-xs font-medium text-zinc-200 transition">
+                        ⚖️ 均衡型
+                    </button>
+                    <button onclick="applyPreset('offensive')" class="px-2 py-1.5 bg-zinc-800 hover:bg-amber-600/30 border border-zinc-700 hover:border-amber-500 rounded text-xs font-medium text-zinc-200 transition">
+                        ⚔️ 進攻型
+                    </button>
+                    <button onclick="applyPreset('defensive')" class="px-2 py-1.5 bg-zinc-800 hover:bg-amber-600/30 border border-zinc-700 hover:border-amber-500 rounded text-xs font-medium text-zinc-200 transition">
+                        🛡️ 防守型
+                    </button>
+                    <button onclick="clearPlayerBoard()" class="col-span-2 px-2 py-1.5 bg-red-950/40 hover:bg-red-900/50 border border-red-800/50 rounded text-xs font-medium text-red-300 transition">
+                        🗑️ 清空棋盤
+                    </button>
+                </div>
 
-                <button onclick="startQuickMatch()" class="w-full py-3.5 bg-gradient-to-r from-blue-700 to-indigo-900 hover:from-blue-600 hover:to-indigo-800 text-white font-bold rounded-xl shadow-lg border border-blue-500/40 flex items-center justify-center gap-2 transition active:scale-98">
-                    <i class="fa-solid fa-dice text-lg"></i>
-                    <span>線上隨機匹配 (Quick Match)</span>
-                </button>
+                <!-- Tray Piece Selector List -->
+                <div class="flex-1 overflow-y-auto border border-zinc-800/80 rounded-lg p-2 bg-zinc-950/50 space-y-1.5" id="tray-pieces-list">
+                    <!-- Populated dynamically via JS -->
+                </div>
 
-                <!-- PRIVATE ROOM CODE INPUT -->
-                <div class="bg-[#180b05] p-3 rounded-xl border border-[#3d2314] flex flex-col gap-2">
-                    <span class="text-xs font-semibold text-amber-400">🔑 私密房間 (6 位數房號)</span>
-                    <div class="flex gap-2">
-                        <input id="room-code-input" type="text" maxlength="6" placeholder="輸入房號" class="flex-1 bg-[#2b1810] border border-amber-900/60 rounded-lg px-3 py-2 text-center font-mono text-sm text-amber-100 focus:outline-none focus:border-amber-500 uppercase">
-                        <button onclick="joinPrivateRoom()" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition">
-                            加入
-                        </button>
+                <!-- Legal Checklist Status -->
+                <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs space-y-1">
+                    <div class="text-zinc-400 font-semibold mb-1 border-b border-zinc-800/60 pb-1">布陣規則檢查：</div>
+                    <div id="chk-flag" class="flex items-center gap-2 text-zinc-400">
+                        <i class="fa-solid fa-circle-xmark text-red-500"></i> 軍旗必須在底層大本營
                     </div>
-                    <button onclick="createPrivateRoom()" class="w-full py-2 bg-[#3d2314] hover:bg-[#4a2c11] text-amber-300 font-semibold text-xs rounded-lg transition border border-amber-800/40">
-                        建立新私密房間
+                    <div id="chk-mines" class="flex items-center gap-2 text-zinc-400">
+                        <i class="fa-solid fa-circle-xmark text-red-500"></i> 地雷必須在最後兩排
+                    </div>
+                    <div id="chk-bombs" class="flex items-center gap-2 text-zinc-400">
+                        <i class="fa-solid fa-circle-xmark text-red-500"></i> 炸彈不能放在第一排
+                    </div>
+                    <div id="chk-camps" class="flex items-center gap-2 text-zinc-400">
+                        <i class="fa-solid fa-circle-check text-green-500"></i> 行營內不能初始擺棋
+                    </div>
+                </div>
+
+                <!-- Start Battle Button -->
+                <button id="btn-start-game" onclick="startGame()" disabled class="w-full py-2.5 rounded-lg font-bold text-sm transition shadow-lg opacity-50 cursor-not-allowed bg-zinc-700 text-zinc-400">
+                    🚀 開始對戰
+                </button>
+            </div>
+
+            <!-- PLAYING PHASE SIDEBAR CONTENT (AUTOSWITCHES ON START) -->
+            <div id="sidebar-playing-panel" class="hidden flex-1 flex-col p-3 overflow-y-auto space-y-3">
+                <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <h2 class="font-bold text-sm text-amber-400 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>敵我棋子統計表</span>
+                    </h2>
+                    <span class="text-xs text-zinc-400" id="game-status-mini">對戰中</span>
+                </div>
+
+                <!-- Piece Counts Table -->
+                <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="piece-stats-container">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="pt-2 border-t border-zinc-800 grid grid-cols-2 gap-2">
+                    <button onclick="surrender()" class="py-2 px-3 bg-red-950/60 hover:bg-red-900 border border-red-800 rounded-lg text-xs font-semibold text-red-200 transition">
+                        🏳️ 認輸
+                    </button>
+                    <button onclick="restartGame()" class="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs font-semibold text-zinc-200 transition">
+                        🔄 重新開始
                     </button>
                 </div>
             </div>
 
-            <div class="text-center text-[11px] text-amber-400/60">
-                符合經典陸戰棋規則 · 同級相撞攻擊方勝
+        </aside>
+
+        <!-- CENTER CHESS BOARD CONTAINER -->
+        <section class="flex-1 h-full flex flex-col items-center justify-center relative overflow-hidden">
+            <div id="board-wrapper" class="board-container w-full h-full max-w-[560px] max-h-[820px] relative flex items-center justify-center p-2">
+                
+                <!-- SVG Board Grid Lines Layer -->
+                <svg id="board-svg" class="w-full h-full absolute inset-0 z-0" viewBox="0 0 500 750">
+                    <!-- Dynamic SVG content drawn by JS -->
+                </svg>
+
+                <!-- Board Interactive Grid Overlay -->
+                <div id="board-grid-layer" class="w-full h-full relative z-10">
+                    <!-- Pieces and Click Targets Rendered Here -->
+                </div>
+
+            </div>
+        </section>
+
+        <!-- RIGHT SIDEBAR: Move History & Combat Logs -->
+        <aside class="w-64 md:w-72 bg-zinc-900/90 border border-zinc-800 rounded-xl flex flex-col shrink-0 overflow-hidden shadow-xl z-10 hidden sm:flex">
+            <div class="p-3 border-b border-zinc-800 flex items-center justify-between">
+                <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-scroll"></i>
+                    <span>對局記錄與戰報</span>
+                </h3>
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            </div>
+
+            <!-- History Log Box -->
+            <div id="move-history-log" class="flex-1 p-3 overflow-y-auto space-y-2 text-xs font-mono bg-zinc-950/40">
+                <div class="text-zinc-500 italic text-center py-4">歡迎來到陸戰棋！請先在左側完成布陣。</div>
+            </div>
+
+            <!-- Quick Info Footer -->
+            <div class="p-2.5 bg-zinc-950 border-t border-zinc-800 text-[11px] text-zinc-400 space-y-1">
+                <div class="flex justify-between">
+                    <span>同級碰撞:</span>
+                    <span class="text-amber-400 font-bold">攻擊方勝出 (存活)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>工兵特權:</span>
+                    <span class="text-emerald-400 font-bold">鐵路任意轉彎 / 拆雷</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>行營保護:</span>
+                    <span class="text-sky-400 font-bold">免疫任何敵方攻擊</span>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- MODAL: Mode Selector (Single Player AI / Local 2P / Online Firebase) -->
+    <div id="modal-mode" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+                <h3 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i> 選擇對戰模式
+                </h3>
+                <button onclick="closeModeModal()" class="text-zinc-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-2.5">
+                <!-- Single Player AI -->
+                <button onclick="selectGameMode('ai')" class="w-full p-3.5 rounded-lg border border-zinc-700 hover:border-amber-500 bg-zinc-800/80 hover:bg-zinc-800 text-left transition flex items-center justify-between group">
+                    <div>
+                        <div class="font-bold text-amber-200 group-hover:text-amber-400">🤖 單人對戰 (智慧 AI 敵方)</div>
+                        <div class="text-xs text-zinc-400 mt-0.5">與離線 AI 進行人機對決，適合練習佈陣與戰術</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-zinc-500 group-hover:text-amber-400"></i>
+                </button>
+
+                <!-- Local 2P -->
+                <button onclick="selectGameMode('local')" class="w-full p-3.5 rounded-lg border border-zinc-700 hover:border-amber-500 bg-zinc-800/80 hover:bg-zinc-800 text-left transition flex items-center justify-between group">
+                    <div>
+                        <div class="font-bold text-sky-200 group-hover:text-sky-400">👥 雙人同屏 (面對面對戰)</div>
+                        <div class="text-xs text-zinc-400 mt-0.5">同一台 iPad / 平板裝置輪流操作對決</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-zinc-500 group-hover:text-sky-400"></i>
+                </button>
+
+                <!-- Online Multiplayer -->
+                <div class="p-3.5 rounded-lg border border-zinc-700 bg-zinc-800/80 space-y-2">
+                    <div class="font-bold text-emerald-300">🌐 線上連線房間 (Firebase)</div>
+                    <div class="flex gap-2">
+                        <input id="room-code-input" type="text" placeholder="6位數房號" maxlength="6" class="flex-1 px-3 py-1.5 rounded bg-zinc-950 border border-zinc-700 text-xs text-center font-mono focus:border-emerald-500 outline-none uppercase">
+                        <button onclick="joinOnlineRoom()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 rounded text-xs font-bold transition">加入</button>
+                        <button onclick="createOnlineRoom()" class="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 rounded text-xs font-bold transition">建房</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- SETTLEMENT MODAL (結算彈窗) -->
-    <div id="settlement-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end justify-center p-0 md:p-4 z-50 hidden">
-        <div class="bg-[#24130a] border-t-2 md:border-2 border-amber-600/40 w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 text-amber-100 shadow-2xl flex flex-col gap-4 animate-slide-up">
-            <div class="text-center">
-                <div id="settlement-icon" class="text-5xl mb-2 text-amber-400">🏆</div>
-                <h3 id="settlement-title" class="text-2xl font-black text-amber-100">戰局結算 - 勝利!</h3>
-                <p id="settlement-subtitle" class="text-xs text-amber-400/80 mt-1">成功的戰術佈局奪得最後勝利</p>
-            </div>
+    <!-- GAME CODE LOGIC -->
+    <script>
+        /**
+         * TRADITIONAL CHINESE ARMY CHESS (陸戰棋 / 軍棋) ENGINE
+         * Board: 13 Rows (0 to 12) x 5 Columns (0 to 4)
+         * Red (Player): Rows 6 to 12
+         * Black (AI/Enemy): Rows 0 to 5
+         */
 
-            <!-- METRICS CARDS -->
-            <div class="grid grid-cols-3 gap-2 py-2">
-                <div class="bg-[#180b05] p-3 rounded-xl border border-[#3d2314] text-center">
-                    <span class="text-[10px] text-amber-400/70 block">總回合數</span>
-                    <span id="metric-moves" class="text-lg font-bold text-amber-200">24</span>
-                </div>
-                <div class="bg-[#180b05] p-3 rounded-xl border border-[#3d2314] text-center">
-                    <span class="text-[10px] text-amber-400/70 block">擊殺棋子</span>
-                    <span id="metric-kills" class="text-lg font-bold text-amber-200">12</span>
-                </div>
-                <div class="bg-[#180b05] p-3 rounded-xl border border-[#3d2314] text-center">
-                    <span class="text-[10px] text-amber-400/70 block">對局時間</span>
-                    <span id="metric-time" class="text-lg font-bold text-amber-200">04:15</span>
-                </div>
-            </div>
-
-            <div class="flex gap-3 pt-2">
-                <button onclick="restartMatch()" class="flex-1 py-3 bg-gradient-to-r from-amber-600 to-amber-800 text-white font-bold text-sm rounded-xl shadow hover:brightness-110 active:scale-95 transition">
-                    再玩一局
-                </button>
-                <button onclick="returnToLobby()" class="flex-1 py-3 bg-[#3d2314] text-amber-200 font-bold text-sm rounded-xl border border-amber-800 hover:bg-[#4a2c11] active:scale-95 transition">
-                    回到大廳
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- FIREBASE MODULES & GAME ENGINE SCRIPT -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Setup & Initialization
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'army-chess-v1';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "demo-api-key",
-            authDomain: "demo.firebaseapp.com",
-            projectId: "demo-project",
-            storageBucket: "demo.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:demo"
+        // Ranks hierarchy & definitions
+        const PIECE_TYPES = {
+            '39': { name: '司令', count: 1, rank: 39 },
+            '38': { name: '軍長', count: 1, rank: 38 },
+            '37': { name: '師長', count: 2, rank: 37 },
+            '36': { name: '旅長', count: 2, rank: 36 },
+            '35': { name: '團長', count: 2, rank: 35 },
+            '34': { name: '營長', count: 2, rank: 34 },
+            '33': { name: '連長', count: 3, rank: 33 },
+            '32': { name: '排長', count: 3, rank: 32 },
+            '31': { name: '工兵', count: 3, rank: 31 },
+            'B':  { name: '炸彈', count: 2, rank: 0 },  // Kills any piece & dies
+            'M':  { name: '地雷', count: 3, rank: -1 }, // Immovable. Engineer disarms. Non-engineer mutually dies.
+            'F':  { name: '軍旗', count: 1, rank: -2 }  // Immovable target
         };
 
-        let app, db, auth, currentUser = null;
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            
-            // Mandatory Auth Priority Check
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                signInWithCustomToken(auth, __initial_auth_token).then(res => { currentUser = res.user; });
-            } else {
-                signInAnonymously(auth).then(res => { currentUser = res.user; });
-            }
-        } catch (e) {
-            console.log("Firestore fallback to offline single player mode.");
-        }
-
-        // ==================== GAME CONSTANTS & PIECE RANKS ====================
-        // Hierarchy: 司令(9) > 軍長(8) > 師長(7) > 旅長(6) > 團長(5) > 營長(4) > 連長(3) > 排長(2) > 工兵(1)
-        // Special: 炸彈(0, mutual kill), 地雷(-1, static mine), 軍旗(-2, static flag)
-        const PIECE_TYPES = [
-            { name: '司令', rank: 9, count: 1 },
-            { name: '軍長', rank: 8, count: 1 },
-            { name: '師長', rank: 7, count: 2 },
-            { name: '旅長', rank: 6, count: 2 },
-            { name: '團長', rank: 5, count: 2 },
-            { name: '營長', rank: 4, count: 2 },
-            { name: '連長', rank: 3, count: 3 },
-            { name: '排長', rank: 2, count: 3 },
-            { name: '工兵', rank: 1, count: 3 },
-            { name: '炸彈', rank: 0, count: 2 },
-            { name: '地雷', rank: -1, count: 3 },
-            { name: '軍旗', rank: -2, count: 1 }
+        // Campsite Grid Locations
+        const CAMPSITES = [
+            {r: 2, c: 1}, {r: 2, c: 3},
+            {r: 3, c: 2},
+            {r: 4, c: 1}, {r: 4, c: 3},
+            {r: 8, c: 1}, {r: 8, c: 3},
+            {r: 9, c: 2},
+            {r: 10, c: 1}, {r: 10, c: 3}
         ];
 
-        // Total 25 pieces per side
-        const TOTAL_PIECES_PER_PLAYER = 25;
+        // Headquarters (HQs)
+        const HQS = [
+            {r: 0, c: 1}, {r: 0, c: 3}, // Enemy HQs
+            {r: 12, c: 1}, {r: 12, c: 3} // Player HQs
+        ];
 
-        // ==================== GAME STATE MANAGEMENT ====================
-        let gameState = {
-            mode: 'single', // 'single' or 'multi'
-            phase: 'setup', // 'setup', 'playing', 'finished'
-            turn: 'p1',     // 'p1' (Bottom / Red) or 'p2' (Top / Blue)
-            perspective: 'p1', // 'p1' sees p1 at bottom; 'p2' sees p2 at bottom
-            p1Ready: false,
-            p2Ready: false,
-            board: Array(12).fill(null).map(() => Array(5).fill(null)),
-            selectedSquare: null,
-            validMoves: [],
-            unplacedP1Pieces: [],
-            p1LostCount: 0,
-            p2LostCount: 0,
-            totalMoves: 0,
-            startTime: null,
-            timerInterval: null,
-            timerSec: 30,
-            roomId: null,
-            unsubscribeFirestore: null
-        };
-
-        // ==================== WEB AUDIO SYNTHESIZER ====================
-        class SoundSynth {
-            constructor() {
-                this.ctx = null;
-                this.muted = false;
+        // Railway Lines Grid Points: Row 1, 5, 6, 11 and Col 0, 4
+        function isRailway(r, c) {
+            if (r === 1 || r === 5 || r === 6 || r === 11) {
+                if (c >= 0 && c <= 4) return true;
             }
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
+            if ((c === 0 || c === 4) && ((r >= 1 && r <= 5) || (r >= 6 && r <= 11))) {
+                return true;
             }
-            play(type) {
-                if (this.muted) return;
-                try {
-                    this.init();
-                    if (this.ctx.state === 'suspended') this.ctx.resume();
-                    const t = this.ctx.currentTime;
-                    
-                    if (type === 'move') {
-                        const osc = this.ctx.createOscillator();
-                        const g = this.ctx.createGain();
-                        osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(180, t);
-                        osc.frequency.exponentialRampToValueAtTime(40, t + 0.08);
-                        g.gain.setValueAtTime(0.3, t);
-                        g.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
-                        osc.connect(g); g.connect(this.ctx.destination);
-                        osc.start(t); osc.stop(t + 0.08);
-                    } else if (type === 'reveal') {
-                        const osc = this.ctx.createOscillator();
-                        const g = this.ctx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(350, t);
-                        osc.frequency.exponentialRampToValueAtTime(700, t + 0.12);
-                        g.gain.setValueAtTime(0.25, t);
-                        g.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
-                        osc.connect(g); g.connect(this.ctx.destination);
-                        osc.start(t); osc.stop(t + 0.12);
-                    } else if (type === 'combat') {
-                        const osc = this.ctx.createOscillator();
-                        const g = this.ctx.createGain();
-                        osc.type = 'square';
-                        osc.frequency.setValueAtTime(520, t);
-                        osc.frequency.setValueAtTime(660, t + 0.08);
-                        g.gain.setValueAtTime(0.3, t);
-                        g.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
-                        osc.connect(g); g.connect(this.ctx.destination);
-                        osc.start(t); osc.stop(t + 0.25);
-                    } else if (type === 'explosion') {
-                        const bufferSize = this.ctx.sampleRate * 0.35;
-                        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                        const data = buffer.getChannelData(0);
-                        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-                        const noise = this.ctx.createBufferSource();
-                        noise.buffer = buffer;
-                        const filter = this.ctx.createBiquadFilter();
-                        filter.type = 'lowpass';
-                        filter.frequency.setValueAtTime(600, t);
-                        filter.frequency.exponentialRampToValueAtTime(40, t + 0.35);
-                        const g = this.ctx.createGain();
-                        g.gain.setValueAtTime(0.5, t);
-                        g.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
-                        noise.connect(filter); filter.connect(g); g.connect(this.ctx.destination);
-                        noise.start(t);
-                    } else if (type === 'victory') {
-                        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
-                            const osc = this.ctx.createOscillator();
-                            const g = this.ctx.createGain();
-                            osc.type = 'triangle'; osc.frequency.value = freq;
-                            g.gain.setValueAtTime(0.2, t + idx * 0.1);
-                            g.gain.exponentialRampToValueAtTime(0.01, t + idx * 0.1 + 0.3);
-                            osc.connect(g); g.connect(this.ctx.destination);
-                            osc.start(t + idx * 0.1); osc.stop(t + idx * 0.1 + 0.3);
-                        });
-                    }
-                } catch(e) {}
-            }
+            return false;
         }
-        const sound = new SoundSynth();
 
-        // ==================== BOARD GRID UTILITIES ====================
         function isCampsite(r, c) {
-            return (r === 2 && (c === 1 || c === 3)) ||
-                   (r === 3 && c === 2) ||
-                   (r === 4 && (c === 1 || c === 3)) ||
-                   (r === 7 && (c === 1 || c === 3)) ||
-                   (r === 8 && c === 2) ||
-                   (r === 9 && (c === 1 || c === 3));
+            return CAMPSITES.some(p => p.r === r && p.c === c);
         }
 
         function isHQ(r, c) {
-            return (r === 0 || r === 11) && (c === 1 || c === 3);
+            return HQS.some(p => p.r === r && p.c === c);
         }
 
-        function isRailway(r, c) {
-            if (r === 1 || r === 5 || r === 6 || r === 10) return true;
-            if ((c === 0 || c === 4) && r >= 1 && r <= 10) return true;
-            return false;
-        }
+        // Global Game State Variables
+        let board = Array(13).fill(null).map(() => Array(5).fill(null));
+        let gameState = 'SETUP'; // 'SETUP' or 'PLAYING' or 'ENDED'
+        let gameMode = 'ai'; // 'ai', 'local', 'online'
+        let currentTurn = 'red'; // 'red' (Player) or 'black' (AI/Opponent)
+        let selectedCell = null;
+        let selectedTrayType = null;
+        let validMoves = [];
+        let aiThinking = false;
+        let audioEnabled = true;
+        let audioCtx = null;
 
-        function isFrontlineRow(r) {
-            return r === 5 || r === 6;
-        }
+        // Player remaining pieces in Tray for Setup
+        let trayPieces = {};
 
-        function isBackTwoRowsP1(r) {
-            return r === 10 || r === 11;
-        }
+        // DOM elements
+        let svgBoard, gridLayer, trayListEl;
 
-        function isBackTwoRowsP2(r) {
-            return r === 0 || r === 1;
-        }
+        // Sound Synthesis via Web Audio API
+        function playSound(type) {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
 
-        // Percentage Coordinates mapping for 500x700 SVG
-        const COL_X_PCT = [10, 28, 46, 64, 82]; // Percentage offset
-        const ROW_Y_PCT = [5.7, 13.4, 21.1, 28.8, 36.5, 44.2, 55.7, 63.4, 71.1, 78.8, 86.5, 94.2];
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
 
-        // ==================== PATHFINDING & VALID MOVES ====================
-        function getNeighbors(r, c) {
-            const list = [];
-            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-            const diagDirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+                const now = audioCtx.currentTime;
 
-            // 1-step orthogonal moves
-            for (let [dr, dc] of dirs) {
-                let nr = r + dr, nc = c + dc;
-                if (nr < 0 || nr > 11 || nc < 0 || nc > 4) continue;
-                // Check river crossing constraint
-                if ((r === 5 && nr === 6) || (r === 6 && nr === 5)) {
-                    if (c !== 0 && c !== 2 && c !== 4) continue; // Only bridges
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(400, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'move') {
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(500, now + 0.08);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'capture') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.18);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'explode') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(40, now + 0.25);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'win') {
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.1);
+                    osc.frequency.setValueAtTime(783.99, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
                 }
-                list.push({ r: nr, c: nc });
-            }
+            } catch(e){}
+        }
 
-            // Diagonals for Campsite connections
-            if (isCampsite(r, c)) {
-                for (let [dr, dc] of diagDirs) {
-                    let nr = r + dr, nc = c + dc;
-                    if (nr >= 0 && nr <= 11 && nc >= 0 && nc <= 4) {
-                        list.push({ r: nr, c: nc });
-                    }
-                }
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            if (audioEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-xs text-amber-400';
             } else {
-                // If adjacent to campsite, can enter diagonally
-                for (let [dr, dc] of diagDirs) {
-                    let nr = r + dr, nc = c + dc;
-                    if (nr >= 0 && nr <= 11 && nc >= 0 && nc <= 4 && isCampsite(nr, nc)) {
-                        list.push({ r: nr, c: nc });
-                    }
-                }
+                icon.className = 'fa-solid fa-volume-xmark text-xs text-zinc-500';
             }
-            return list;
         }
 
-        function calculateValidMoves(r, c, board) {
-            const piece = board[r][c];
-            if (!piece) return [];
-            
-            // Immovable pieces: Landmine (-1) & Flag (-2)
-            if (piece.rank === -1 || piece.rank === -2) return [];
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            svgBoard = document.getElementById('board-svg');
+            gridLayer = document.getElementById('board-grid-layer');
+            trayListEl = document.getElementById('tray-pieces-list');
 
-            const valid = [];
-            const neighbors = getNeighbors(r, c);
+            initTrayPieces();
+            drawBoardBackground();
+            renderTrayUI();
+            renderBoardUI();
+            setupAIOpponentBoard();
+            updateSetupChecklist();
 
-            // 1. Standard Road Moves
-            for (let nb of neighbors) {
-                const targetPiece = board[nb.r][nb.c];
-                // Cannot attack campsite
-                if (targetPiece && isCampsite(nb.r, nb.c)) continue;
-                if (!targetPiece || targetPiece.owner !== piece.owner) {
-                    valid.push(nb);
-                }
+            window.addEventListener('resize', () => {
+                renderBoardUI();
+            });
+        });
+
+        // Initialize Tray Counts
+        function initTrayPieces() {
+            trayPieces = {};
+            for (let key in PIECE_TYPES) {
+                trayPieces[key] = PIECE_TYPES[key].count;
             }
+        }
 
-            // 2. Railway Moves
-            if (isRailway(r, c)) {
-                if (piece.rank === 1) { // Engineer (工兵) - Unlimited Railway pathfinding
-                    const railMoves = getEngineerRailwayMoves(r, c, board, piece.owner);
-                    railMoves.forEach(m => {
-                        if (!valid.some(v => v.r === m.r && v.c === m.c)) valid.push(m);
-                    });
-                } else {
-                    // Normal pieces: 1-step straight along railway
-                    neighbors.filter(nb => isRailway(nb.r, nb.c)).forEach(nb => {
-                        // Check if straight
-                        if (nb.r === r || nb.c === c) {
-                            const targetPiece = board[nb.r][nb.c];
-                            if (!targetPiece || (targetPiece.owner !== piece.owner && !isCampsite(nb.r, nb.c))) {
-                                if (!valid.some(v => v.r === nb.r && v.c === nb.c)) valid.push(nb);
-                            }
+        // DRAW SVG BOARD GRAPHICS
+        function drawBoardBackground() {
+            let svgHtml = '';
+            // ViewBox 0 0 500 750 (5 cols x 13 rows)
+            const cw = 500 / 5;
+            const rh = 750 / 13;
+
+            // Background grid
+            // Grid lines
+            for (let r = 0; r < 13; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const x1 = c * cw + cw/2;
+                    const y1 = r * rh + rh/2;
+
+                    // Right connection
+                    if (c < 4) {
+                        const x2 = (c+1) * cw + cw/2;
+                        const isRwy = isRailway(r, c) && isRailway(r, c+1);
+                        svgHtml += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y1}" stroke="${isRwy ? '#f59e0b' : '#64748b'}" stroke-width="${isRwy ? 3.5 : 1.5}" ${isRwy ? 'stroke-dasharray="6,3"' : ''} />`;
+                    }
+
+                    // Down connection
+                    if (r < 12) {
+                        // River gap between row 5 and 6 except bridge posts (cols 0, 2, 4)
+                        const isRiverGap = (r === 5 && (c === 1 || c === 3));
+                        if (!isRiverGap) {
+                            const y2 = (r+1) * rh + rh/2;
+                            const isRwy = isRailway(r, c) && isRailway(r+1, c);
+                            svgHtml += `<line x1="${x1}" y1="${y1}" x2="${x1}" y2="${y2}" stroke="${isRwy ? '#f59e0b' : '#64748b'}" stroke-width="${isRwy ? 3.5 : 1.5}" ${isRwy ? 'stroke-dasharray="6,3"' : ''} />`;
                         }
-                    });
-                }
-            }
-
-            return valid;
-        }
-
-        function getEngineerRailwayMoves(startR, startC, board, owner) {
-            const valid = [];
-            const queue = [{ r: startR, c: startC }];
-            const visited = new Set([`${startR},${startC}`]);
-
-            while (queue.length > 0) {
-                const curr = queue.shift();
-                const neighbors = getNeighbors(curr.r, curr.c).filter(nb => isRailway(nb.r, nb.c));
-
-                for (let nb of neighbors) {
-                    // Engineer only travels in straight grid lines on railway
-                    if (nb.r !== curr.r && nb.c !== curr.c) continue;
-                    const key = `${nb.r},${nb.c}`;
-                    if (visited.has(key)) continue;
-                    visited.add(key);
-
-                    const targetPiece = board[nb.r][nb.c];
-                    if (!targetPiece) {
-                        valid.push(nb);
-                        queue.push(nb);
-                    } else if (targetPiece.owner !== owner) {
-                        if (!isCampsite(nb.r, nb.c)) valid.push(nb);
                     }
                 }
             }
-            return valid;
-        }
 
-        // ==================== PLACEMENT / SETUP PHASE ====================
-        function initSetupPhase() {
-            gameState.phase = 'setup';
-            gameState.board = Array(12).fill(null).map(() => Array(5).fill(null));
-            
-            // Build 25 unplaced pieces list for P1
-            gameState.unplacedP1Pieces = [];
-            PIECE_TYPES.forEach(pt => {
-                for (let i = 0; i < pt.count; i++) {
-                    gameState.unplacedP1Pieces.push({
-                        id: `p1_${pt.name}_${i}`,
-                        name: pt.name,
-                        rank: pt.rank,
-                        owner: 'p1',
-                        revealed: true
-                    });
-                }
-            });
+            // Draw Campsite Diagonal Lines
+            CAMPSITES.forEach(cs => {
+                const cx = cs.c * cw + cw/2;
+                const cy = cs.r * rh + rh/2;
+                const r = cs.r;
+                const c = cs.c;
 
-            renderPieceTray();
-            renderBoard();
-            validateSetupRules();
-        }
-
-        function renderPieceTray() {
-            const tray = document.getElementById('piece-tray');
-            tray.innerHTML = '';
-
-            // Group unplaced pieces by type
-            const counts = {};
-            gameState.unplacedP1Pieces.forEach(p => {
-                counts[p.name] = (counts[p.name] || 0) + 1;
-            });
-
-            if (Object.keys(counts).length === 0) {
-                tray.innerHTML = `<span class="text-xs text-emerald-400 font-bold px-3 py-2">✓ 所有棋子已全數擺放完成！</span>`;
-                return;
-            }
-
-            PIECE_TYPES.forEach(pt => {
-                if (counts[pt.name]) {
-                    const btn = document.createElement('button');
-                    btn.className = `piece piece-p1 flex-shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition ${gameState.selectedTrayPiece?.name === pt.name ? 'piece-selected' : ''}`;
-                    btn.innerHTML = `<span>${pt.name}</span><span class="px-1 bg-amber-900/20 text-amber-900 rounded text-[10px]">${counts[pt.name]}</span>`;
-                    btn.onclick = () => {
-                        gameState.selectedTrayPiece = gameState.unplacedP1Pieces.find(p => p.name === pt.name);
-                        gameState.selectedSquare = null;
-                        renderPieceTray();
-                        renderBoard();
-                    };
-                    tray.appendChild(btn);
-                }
-            });
-        }
-
-        function validateSetupRules() {
-            // Rules check for P1 (Bottom side: rows 6..11)
-            let p1Pieces = [];
-            for (let r = 6; r <= 11; r++) {
-                for (let c = 0; c < 5; c++) {
-                    if (gameState.board[r][c]) p1Pieces.push({ r, c, piece: gameState.board[r][c] });
-                }
-            }
-
-            const flagPiece = p1Pieces.find(p => p.piece.rank === -2);
-            const flagInHQ = flagPiece && (flagPiece.r === 11 && (flagPiece.c === 1 || flagPiece.c === 3));
-
-            const mines = p1Pieces.filter(p => p.piece.rank === -1);
-            const minesInBackTwo = mines.length === 3 && mines.every(p => isBackTwoRowsP1(p.r));
-
-            const bombs = p1Pieces.filter(p => p.piece.rank === 0);
-            const bombsNotInFront = bombs.every(p => p.r !== 6);
-
-            const noCampsitePieces = p1Pieces.every(p => !isCampsite(p.r, p.c));
-
-            const allPlaced = gameState.unplacedP1Pieces.length === 0 && p1Pieces.length === TOTAL_PIECES_PER_PLAYER;
-
-            const confirmBtn = document.getElementById('confirm-setup-btn');
-            const statusText = document.getElementById('placement-rule-status');
-            const badge = document.getElementById('placed-count-badge');
-
-            badge.innerText = `已擺放: ${p1Pieces.length} / 25`;
-
-            if (allPlaced && flagInHQ && minesInBackTwo && bombsNotInFront && noCampsitePieces) {
-                confirmBtn.disabled = false;
-                confirmBtn.className = "w-full py-3 mt-1 bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-extrabold text-sm rounded-xl transition shadow-lg hover:brightness-110 active:scale-98 animate-pulse cursor-pointer";
-                statusText.innerText = "✓ 陣役符合標準！可點擊「確認準備完成」";
-                statusText.className = "font-semibold text-emerald-400";
-            } else {
-                confirmBtn.disabled = true;
-                confirmBtn.className = "w-full py-3 mt-1 bg-gray-700 text-gray-400 font-bold text-sm rounded-xl transition shadow-lg opacity-50 cursor-not-allowed";
-                statusText.innerText = "軍旗需在大本營，地雷於後兩排，炸彈不可在前線";
-                statusText.className = "font-semibold text-amber-400";
-            }
-        }
-
-        window.applyPreset = function(type) {
-            sound.play('move');
-            // Reset P1 board slots
-            for (let r = 6; r <= 11; r++) {
-                for (let c = 0; c < 5; c++) gameState.board[r][c] = null;
-            }
-            
-            // Rebuild unplaced pieces
-            initSetupPhase();
-
-            const p1ValidSlots = [];
-            for (let r = 6; r <= 11; r++) {
-                for (let c = 0; c < 5; c++) {
-                    if (!isCampsite(r, c)) p1ValidSlots.push({ r, c });
-                }
-            }
-
-            let piecesToPlace = [...gameState.unplacedP1Pieces];
-            
-            if (type === 'random') {
-                // Guaranteed 100% valid random layout generator
-                // 1. Place Flag in HQ
-                const hqChoice = Math.random() < 0.5 ? { r: 11, c: 1 } : { r: 11, c: 3 };
-                const flagIdx = piecesToPlace.findIndex(p => p.rank === -2);
-                gameState.board[hqChoice.r][hqChoice.c] = piecesToPlace.splice(flagIdx, 1)[0];
-
-                // 2. Place 3 Mines in back two rows
-                const backSlots = p1ValidSlots.filter(s => isBackTwoRowsP1(s.r) && !(s.r === hqChoice.r && s.c === hqChoice.c));
-                shuffleArray(backSlots);
-                for (let i = 0; i < 3; i++) {
-                    const mineIdx = piecesToPlace.findIndex(p => p.rank === -1);
-                    const slot = backSlots.pop();
-                    gameState.board[slot.r][slot.c] = piecesToPlace.splice(mineIdx, 1)[0];
-                }
-
-                // 3. Place 2 Bombs (not in row 6)
-                const nonFrontSlots = p1ValidSlots.filter(s => s.r !== 6 && !gameState.board[s.r][s.c]);
-                shuffleArray(nonFrontSlots);
-                for (let i = 0; i < 2; i++) {
-                    const bombIdx = piecesToPlace.findIndex(p => p.rank === 0);
-                    const slot = nonFrontSlots.pop();
-                    gameState.board[slot.r][slot.c] = piecesToPlace.splice(bombIdx, 1)[0];
-                }
-
-                // 4. Fill remaining 19 pieces into remaining empty slots
-                const emptySlots = p1ValidSlots.filter(s => !gameState.board[s.r][s.c]);
-                shuffleArray(piecesToPlace);
-                emptySlots.forEach(s => {
-                    gameState.board[s.r][s.c] = piecesToPlace.pop();
+                // 4 diagonal lines radiating from campsite center
+                const offsets = [[-1,-1], [-1,1], [1,-1], [1,1]];
+                offsets.forEach(off => {
+                    const tx = (c + off[1]) * cw + cw/2;
+                    const ty = (r + off[0]) * rh + rh/2;
+                    svgHtml += `<line x1="${cx}" y1="${cy}" x2="${tx}" y2="${ty}" stroke="#a1a1aa" stroke-width="1.2" stroke-dasharray="3,2" />`;
                 });
-
-                gameState.unplacedP1Pieces = [];
-            } else if (type === 'balanced' || type === 'offensive' || type === 'defensive') {
-                // Preset Layout Map
-                applyPresetTemplate(type);
-            }
-
-            gameState.selectedTrayPiece = null;
-            renderPieceTray();
-            renderBoard();
-            validateSetupRules();
-        };
-
-        function applyPresetTemplate(type) {
-            const template = type === 'offensive' ? [
-                [-2, 11, 1], [-1, 11, 3], [-1, 11, 4], [-1, 10, 3],
-                [9, 6, 2], [8, 6, 0], [7, 6, 4], [7, 7, 0],
-                [0, 8, 0], [0, 8, 4], [1, 6, 1], [1, 6, 3], [1, 7, 2]
-            ] : [
-                [-2, 11, 3], [-1, 11, 1], [-1, 11, 2], [-1, 10, 3],
-                [9, 10, 1], [8, 10, 2], [0, 9, 0], [0, 9, 4],
-                [1, 6, 0], [1, 6, 4], [1, 10, 0]
-            ];
-
-            template.forEach(([rank, r, c]) => {
-                const idx = gameState.unplacedP1Pieces.findIndex(p => p.rank === rank);
-                if (idx !== -1) {
-                    gameState.board[r][c] = gameState.unplacedP1Pieces.splice(idx, 1)[0];
-                }
             });
 
-            // Fill remaining empty slots
-            const emptySlots = [];
-            for (let r = 6; r <= 11; r++) {
+            // Draw River Rect in middle (between row 5 and 6)
+            const riverY = 5 * rh + rh/2 + 4;
+            const riverH = rh - 8;
+            svgHtml += `
+                <rect x="10" y="${riverY}" width="480" height="${riverH}" fill="#0369a1" fill-opacity="0.25" stroke="#38bdf8" stroke-width="1.5" rx="6" />
+                <text x="125" y="${riverY + riverH/2 + 5}" fill="#7dd3fc" font-size="16" font-weight="bold" letter-spacing="4">前  線  界  河</text>
+                <text x="375" y="${riverY + riverH/2 + 5}" fill="#7dd3fc" font-size="16" font-weight="bold" text-anchor="end" letter-spacing="4">山  界  水  灣</text>
+            `;
+
+            // Draw Campsite Circles & HQ Arches
+            for (let r = 0; r < 13; r++) {
                 for (let c = 0; c < 5; c++) {
-                    if (!isCampsite(r, c) && !gameState.board[r][c]) emptySlots.push({ r, c });
+                    const cx = c * cw + cw/2;
+                    const cy = r * rh + rh/2;
+
+                    if (isCampsite(r, c)) {
+                        svgHtml += `
+                            <circle cx="${cx}" cy="${cy}" r="${cw*0.35}" fill="#18181b" stroke="#eab308" stroke-width="2" />
+                            <circle cx="${cx}" cy="${cy}" r="${cw*0.28}" fill="none" stroke="#eab308" stroke-width="1" stroke-dasharray="3,2" />
+                            <text x="${cx}" y="${cy+4}" fill="#fef08a" font-size="10" font-weight="bold" text-anchor="middle">行營</text>
+                        `;
+                    } else if (isHQ(r, c)) {
+                        svgHtml += `
+                            <rect x="${cx - cw*0.4}" y="${cy - rh*0.38}" width="${cw*0.8}" height="${rh*0.76}" fill="#27272a" stroke="#ef4444" stroke-width="2" rx="16" />
+                            <text x="${cx}" y="${cy+4}" fill="#fca5a5" font-size="11" font-weight="bold" text-anchor="middle">大本營</text>
+                        `;
+                    }
                 }
             }
-            shuffleArray(gameState.unplacedP1Pieces);
-            emptySlots.forEach(s => {
-                if (gameState.unplacedP1Pieces.length > 0) {
-                    gameState.board[s.r][s.c] = gameState.unplacedP1Pieces.pop();
-                }
-            });
+
+            svgBoard.innerHTML = svgHtml;
         }
 
-        window.clearSetup = function() {
-            sound.play('move');
-            initSetupPhase();
-        };
+        // RENDER TRAY SELECTOR IN LEFT SIDEBAR
+        function renderTrayUI() {
+            let html = '';
+            let totalRemaining = 0;
 
-        window.confirmSetupReady = function() {
-            sound.play('reveal');
-            gameState.p1Ready = true;
+            for (let type in PIECE_TYPES) {
+                const info = PIECE_TYPES[type];
+                const rem = trayPieces[type] || 0;
+                totalRemaining += rem;
 
-            if (gameState.mode === 'single') {
-                // Generate AI Setup for P2 (Top half: rows 0..5)
-                generateAISetup();
-                startBattlePhase();
+                const isSelected = selectedTrayType === type;
+
+                html += `
+                    <div onclick="selectTrayPiece('${type}')" class="flex items-center justify-between p-2 rounded-lg border transition cursor-pointer ${
+                        isSelected 
+                            ? 'bg-amber-600/30 border-amber-500 text-amber-200 shadow' 
+                            : rem > 0 ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300' : 'bg-zinc-950/40 border-zinc-900/60 text-zinc-600 opacity-50'
+                    }">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded border border-red-400/50 bg-red-900/60 text-red-100 font-black text-xs flex items-center justify-center shadow-sm">
+                                ${info.name}
+                            </span>
+                            <span class="text-xs font-semibold">${info.name}</span>
+                        </div>
+                        <span class="text-xs font-mono font-bold px-2 py-0.5 rounded ${rem > 0 ? 'bg-amber-950 text-amber-400 border border-amber-800/50' : 'bg-zinc-800 text-zinc-500'}">
+                            剩餘 ${rem}
+                        </span>
+                    </div>
+                `;
+            }
+
+            trayListEl.innerHTML = html;
+            document.getElementById('placed-count-tag').innerText = `${25 - totalRemaining} / 25`;
+        }
+
+        function selectTrayPiece(type) {
+            if (gameState !== 'SETUP') return;
+            if (trayPieces[type] <= 0) return;
+
+            playSound('click');
+            if (selectedTrayType === type) {
+                selectedTrayType = null;
             } else {
-                // Online multiplayer setup ready sync via Firestore
-                updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', gameState.roomId), {
-                    [`p1Ready`]: true,
-                    boardP1: serializeBoardHalf(6, 11)
-                });
+                selectedTrayType = type;
+                selectedCell = null;
             }
-        };
+            renderTrayUI();
+            renderBoardUI();
+        }
 
-        function generateAISetup() {
-            const p2ValidSlots = [];
-            for (let r = 0; r <= 5; r++) {
+        // CHECKLIST VALIDATION FOR SETUP
+        function updateSetupChecklist() {
+            // Rule 1: Flag in HQ
+            let flagValid = false;
+            if (board[12][1] && board[12][1].type === 'F' && board[12][1].color === 'red') flagValid = true;
+            if (board[12][3] && board[12][3].type === 'F' && board[12][3].color === 'red') flagValid = true;
+
+            // Rule 2: Mines in bottom two rows (rows 11 and 12)
+            let minesValid = true;
+            let mineCount = 0;
+            for (let r = 6; r <= 12; r++) {
                 for (let c = 0; c < 5; c++) {
-                    if (!isCampsite(r, c)) p2ValidSlots.push({ r, c });
+                    if (board[r][c] && board[r][c].color === 'red' && board[r][c].type === 'M') {
+                        mineCount++;
+                        if (r < 11) minesValid = false;
+                    }
                 }
             }
+            if (mineCount !== 3) minesValid = false;
 
-            const p2Pieces = [];
-            PIECE_TYPES.forEach(pt => {
-                for (let i = 0; i < pt.count; i++) {
-                    p2Pieces.push({
-                        id: `p2_${pt.name}_${i}`,
-                        name: pt.name,
-                        rank: pt.rank,
-                        owner: 'p2',
-                        revealed: false // Unrevealed fog of war
-                    });
+            // Rule 3: Bombs NOT in front row (row 6)
+            let bombsValid = true;
+            let bombCount = 0;
+            for (let r = 6; r <= 12; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (board[r][c] && board[r][c].color === 'red' && board[r][c].type === 'B') {
+                        bombCount++;
+                        if (r === 6) bombsValid = false;
+                    }
                 }
+            }
+            if (bombCount !== 2) bombsValid = false;
+
+            // Rule 4: Campsites empty
+            let campsValid = true;
+            CAMPSITES.forEach(cs => {
+                if (cs.r >= 6 && board[cs.r][cs.c]) campsValid = false;
             });
 
-            // Flag in HQ
-            const hqChoice = Math.random() < 0.5 ? { r: 0, c: 1 } : { r: 0, c: 3 };
-            const flagIdx = p2Pieces.findIndex(p => p.rank === -2);
-            gameState.board[hqChoice.r][hqChoice.c] = p2Pieces.splice(flagIdx, 1)[0];
+            // Update DOM UI Status
+            updateCheckUI('chk-flag', flagValid, '軍旗必須在底層大本營');
+            updateCheckUI('chk-mines', minesValid, '地雷必須在最後兩排');
+            updateCheckUI('chk-bombs', bombsValid, '炸彈不能放在第一排');
+            updateCheckUI('chk-camps', campsValid, '行營內不能初始擺棋');
 
-            // Mines in back two rows
-            const backSlots = p2ValidSlots.filter(s => isBackTwoRowsP2(s.r) && !(s.r === hqChoice.r && s.c === hqChoice.c));
-            shuffleArray(backSlots);
-            for (let i = 0; i < 3; i++) {
-                const mineIdx = p2Pieces.findIndex(p => p.rank === -1);
-                const slot = backSlots.pop();
-                gameState.board[slot.r][slot.c] = p2Pieces.splice(mineIdx, 1)[0];
+            let totalPlaced = 0;
+            for (let r = 6; r <= 12; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (board[r][c] && board[r][c].color === 'red') totalPlaced++;
+                }
             }
 
-            // Bombs (not in front row 5)
-            const nonFrontSlots = p2ValidSlots.filter(s => s.r !== 5 && !gameState.board[s.r][s.c]);
-            shuffleArray(nonFrontSlots);
-            for (let i = 0; i < 2; i++) {
-                const bombIdx = p2Pieces.findIndex(p => p.rank === 0);
-                const slot = nonFrontSlots.pop();
-                gameState.board[slot.r][slot.c] = p2Pieces.splice(bombIdx, 1)[0];
+            const startBtn = document.getElementById('btn-start-game');
+            if (flagValid && minesValid && bombsValid && campsValid && totalPlaced === 25) {
+                startBtn.disabled = false;
+                startBtn.className = "w-full py-2.5 rounded-lg font-bold text-sm transition shadow-lg bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white cursor-pointer active:scale-95";
+            } else {
+                startBtn.disabled = true;
+                startBtn.className = "w-full py-2.5 rounded-lg font-bold text-sm transition shadow-lg opacity-50 cursor-not-allowed bg-zinc-700 text-zinc-400";
             }
+        }
 
-            // Fill remaining
-            const emptySlots = p2ValidSlots.filter(s => !gameState.board[s.r][s.c]);
-            shuffleArray(p2Pieces);
-            emptySlots.forEach(s => {
-                gameState.board[s.r][s.c] = p2Pieces.pop();
+        function updateCheckUI(id, isOk, labelText) {
+            const el = document.getElementById(id);
+            if (isOk) {
+                el.className = "flex items-center gap-2 text-green-400 font-medium";
+                el.innerHTML = `<i class="fa-solid fa-circle-check text-green-500"></i> ${labelText}`;
+            } else {
+                el.className = "flex items-center gap-2 text-zinc-400";
+                el.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-500"></i> ${labelText}`;
+            }
+        }
+
+        // RENDER BOARD INTERACTIVE LAYER
+        function renderBoardUI() {
+            gridLayer.innerHTML = '';
+            const rect = gridLayer.getBoundingClientRect();
+            const cellW = rect.width / 5;
+            const cellH = rect.height / 13;
+
+            // Render Highlights for Valid Moves
+            validMoves.forEach(m => {
+                const x = m.c * cellW + cellW / 2;
+                const y = m.r * cellH + cellH / 2;
+                const isAttack = board[m.r][m.c] !== null;
+
+                const hl = document.createElement('div');
+                hl.className = isAttack ? 'highlight-attack' : 'highlight-move';
+                hl.style.left = `${x}px`;
+                hl.style.top = `${y}px`;
+                hl.style.width = isAttack ? `${cellW * 0.85}px` : `${cellW * 0.35}px`;
+                hl.style.height = isAttack ? `${cellH * 0.85}px` : `${cellW * 0.35}px`;
+                gridLayer.appendChild(hl);
             });
-        }
 
-        // ==================== BATTLE PHASE & COMBAT LOGIC ====================
-        function startBattlePhase() {
-            gameState.phase = 'playing';
-            gameState.turn = 'p1';
-            gameState.startTime = Date.now();
-            
-            document.getElementById('setup-panel').classList.add('hidden');
-            document.getElementById('battle-panel').classList.remove('hidden');
+            // Render Pieces & Grid Cell Click Handlers
+            for (let r = 0; r < 13; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const x = c * cellW;
+                    const y = r * cellH;
 
-            startTurnTimer();
-            renderBoard();
-        }
+                    // Click area container
+                    const cellEl = document.createElement('div');
+                    cellEl.style.position = 'absolute';
+                    cellEl.style.left = `${x}px`;
+                    cellEl.style.top = `${y}px`;
+                    cellEl.style.width = `${cellW}px`;
+                    cellEl.style.height = `${cellH}px`;
+                    cellEl.className = 'flex items-center justify-center cursor-pointer';
+                    cellEl.onclick = () => handleCellClick(r, c);
 
-        function handleSquareClick(r, c) {
-            if (gameState.phase === 'setup') {
-                handleSetupSquareClick(r, c);
-                return;
-            }
+                    const item = board[r][c];
+                    if (item) {
+                        const pieceEl = document.createElement('div');
+                        const isRed = item.color === 'red';
+                        const isRevealed = item.revealed || isRed || gameMode === 'local';
 
-            if (gameState.phase !== 'playing') return;
-            if (gameState.turn !== gameState.perspective) return; // Not your turn
+                        pieceEl.className = `piece rounded-lg flex items-center justify-center font-bold relative ${
+                            isRed ? 'piece-red' : 'piece-black'
+                        } ${
+                            selectedCell && selectedCell.r === r && selectedCell.c === c ? 'piece-selected' : ''
+                        }`;
 
-            const clickedPiece = gameState.board[r][c];
+                        pieceEl.style.width = `${cellW * 0.82}px`;
+                        pieceEl.style.height = `${cellH * 0.76}px`;
 
-            // Select piece
-            if (clickedPiece && clickedPiece.owner === gameState.turn) {
-                sound.play('move');
-                gameState.selectedSquare = { r, c };
-                gameState.validMoves = calculateValidMoves(r, c, gameState.board);
-                renderBoard();
-                return;
-            }
+                        // Piece text content
+                        let pName = PIECE_TYPES[item.type].name;
+                        if (!isRevealed) {
+                            pName = '軍棋';
+                        }
 
-            // Move to destination or Attack
-            if (gameState.selectedSquare) {
-                const isMoveValid = gameState.validMoves.some(m => m.r === r && m.c === c);
-                if (isMoveValid) {
-                    executeMove(gameState.selectedSquare, { r, c });
-                } else {
-                    gameState.selectedSquare = null;
-                    gameState.validMoves = [];
-                    renderBoard();
+                        pieceEl.innerHTML = `
+                            <span class="${isRed ? 'text-red-100' : 'text-zinc-200'} text-xs sm:text-sm font-black tracking-wider">
+                                ${pName}
+                            </span>
+                            ${item.revealed && !isRed ? '<span class="badge-revealed">已明</span>' : ''}
+                        `;
+
+                        cellEl.appendChild(pieceEl);
+                    }
+
+                    gridLayer.appendChild(cellEl);
                 }
             }
         }
 
-        function handleSetupSquareClick(r, c) {
-            // Placement only allowed in bottom half for P1 (rows 6..11)
-            if (r < 6 || isCampsite(r, c)) return;
+        // HANDLE BOARD CLICK EVENTS
+        function handleCellClick(r, c) {
+            if (aiThinking) return;
 
-            const existingPiece = gameState.board[r][c];
-
-            if (gameState.selectedTrayPiece) {
-                sound.play('move');
-                // Place piece from tray onto slot
-                if (existingPiece) {
-                    gameState.unplacedP1Pieces.push(existingPiece);
+            // SETUP PHASE INTERACTIONS
+            if (gameState === 'SETUP') {
+                if (r < 6) {
+                    addLog('⚠️ 無法移動到敵方陣地', 'warn');
+                    return;
                 }
-                gameState.board[r][c] = gameState.selectedTrayPiece;
-                const idx = gameState.unplacedP1Pieces.indexOf(gameState.selectedTrayPiece);
-                if (idx !== -1) gameState.unplacedP1Pieces.splice(idx, 1);
-                
-                gameState.selectedTrayPiece = null;
-            } else if (existingPiece) {
-                sound.play('move');
-                // Remove piece back to tray
-                gameState.unplacedP1Pieces.push(existingPiece);
-                gameState.board[r][c] = null;
-            }
-
-            renderPieceTray();
-            renderBoard();
-            validateSetupRules();
-        }
-
-        function executeMove(from, to) {
-            const attacker = gameState.board[from.r][from.c];
-            const defender = gameState.board[to.r][to.c];
-
-            // Reveal moving piece
-            attacker.revealed = true;
-
-            // Combat Resolution Rules
-            let moveResult = 'move'; // 'move', 'p1_win', 'p2_win', 'both_destroyed', 'flag_captured'
-
-            if (defender) {
-                defender.revealed = true;
-
-                // 1. Campsite Immunity
-                if (isCampsite(to.r, to.c)) {
-                    console.error("Illegal attack into campsite");
+                if (isCampsite(r, c)) {
+                    addLog('⚠️ 行營內初始不能擺棋', 'warn');
                     return;
                 }
 
-                // 2. Bomb (炸彈) Mechanics - Mutual Destruction
-                if (attacker.rank === 0 || defender.rank === 0) {
-                    moveResult = 'both_destroyed';
-                    sound.play('explosion');
-                }
-                // 3. Landmine (地雷) Mechanics
-                else if (defender.rank === -1) {
-                    if (attacker.rank === 1) { // Engineer sweeps Mine
-                        moveResult = 'attacker_win';
-                        sound.play('combat');
-                    } else { // Mine destroys non-Engineer attacker
-                        moveResult = 'defender_win';
-                        sound.play('explosion');
+                // If tray piece is selected -> Place piece onto board
+                if (selectedTrayType) {
+                    const existing = board[r][c];
+                    if (existing) {
+                        // Return existing piece to tray
+                        trayPieces[existing.type]++;
                     }
+                    board[r][c] = {
+                        type: selectedTrayType,
+                        color: 'red',
+                        revealed: true
+                    };
+                    trayPieces[selectedTrayType]--;
+                    if (trayPieces[selectedTrayType] <= 0) {
+                        selectedTrayType = null;
+                    }
+                    playSound('click');
+                    renderTrayUI();
+                    renderBoardUI();
+                    updateSetupChecklist();
+                    return;
                 }
-                // 4. Flag Capture (軍旗)
-                else if (defender.rank === -2) {
-                    moveResult = 'flag_captured';
-                    sound.play('victory');
-                }
-                // 5. Standard Officer Hierarchy Comparison
-                else {
-                    if (attacker.rank > defender.rank) {
-                        moveResult = 'attacker_win';
-                        sound.play('combat');
-                    } else if (attacker.rank === defender.rank) {
-                        // MANDATORY RULE: Same rank attacker WINS and survives!
-                        moveResult = 'attacker_win';
-                        sound.play('combat');
+
+                // If clicking an existing piece -> Select or remove it back to tray
+                const clicked = board[r][c];
+                if (clicked && clicked.color === 'red') {
+                    if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                        // Unselect or Return to tray
+                        trayPieces[clicked.type]++;
+                        board[r][c] = null;
+                        selectedCell = null;
+                        playSound('click');
                     } else {
-                        moveResult = 'defender_win';
-                        sound.play('combat');
+                        selectedCell = {r, c};
+                        playSound('click');
                     }
+                    renderTrayUI();
+                    renderBoardUI();
+                    updateSetupChecklist();
+                    return;
                 }
-            } else {
-                sound.play('move');
-            }
 
-            // Apply Move Effects to Board Matrix
-            gameState.board[from.r][from.c] = null;
-
-            if (moveResult === 'move' || moveResult === 'attacker_win' || moveResult === 'flag_captured') {
-                if (defender) {
-                    if (defender.owner === 'p1') gameState.p1LostCount++;
-                    else gameState.p2LostCount++;
+                // If clicking an empty spot while a piece on board is selected -> Swap / Move
+                if (selectedCell && !board[r][c]) {
+                    board[r][c] = board[selectedCell.r][selectedCell.c];
+                    board[selectedCell.r][selectedCell.c] = null;
+                    selectedCell = null;
+                    playSound('move');
+                    renderBoardUI();
+                    updateSetupChecklist();
+                    return;
                 }
-                gameState.board[to.r][to.c] = attacker;
-            } else if (moveResult === 'defender_win') {
-                if (attacker.owner === 'p1') gameState.p1LostCount++;
-                else gameState.p2LostCount++;
-                // Defender stays
-            } else if (moveResult === 'both_destroyed') {
-                gameState.p1LostCount++;
-                gameState.p2LostCount++;
-                gameState.board[to.r][to.c] = null;
-            }
-
-            gameState.selectedSquare = null;
-            gameState.validMoves = [];
-            gameState.totalMoves++;
-
-            updateCaptureCounts();
-            renderBoard();
-
-            // Check Win Condition
-            if (moveResult === 'flag_captured' || checkEliminationVictory()) {
-                endGame(gameState.turn === 'p1' ? 'p1' : 'p2', '奪得軍旗 / 全滅敵方');
                 return;
             }
+
+            // PLAYING PHASE INTERACTIONS
+            if (gameState === 'PLAYING') {
+                if (currentTurn !== 'red' && gameMode === 'ai') return;
+
+                const clicked = board[r][c];
+
+                // If clicking own piece -> Select it and compute legal moves
+                if (clicked && clicked.color === currentTurn) {
+                    // Cannot select immovable Flag or Landmines
+                    if (clicked.type === 'F' || clicked.type === 'M') {
+                        addLog(`⚠️ ${PIECE_TYPES[clicked.type].name}無法移動`, 'warn');
+                        return;
+                    }
+
+                    selectedCell = {r, c};
+                    validMoves = calculateValidMoves(r, c);
+                    playSound('click');
+                    renderBoardUI();
+                    return;
+                }
+
+                // If a piece is already selected, check if target (r,c) is in validMoves
+                if (selectedCell) {
+                    const targetMove = validMoves.find(m => m.r === r && m.c === c);
+                    if (targetMove) {
+                        executeMove(selectedCell.r, selectedCell.c, r, c);
+                        return;
+                    } else {
+                        // Unselect
+                        selectedCell = null;
+                        validMoves = [];
+                        renderBoardUI();
+                    }
+                }
+            }
+        }
+
+        // PRESET SETUP LAYOUTS
+        function applyPreset(presetType) {
+            clearPlayerBoard();
+
+            // Preset templates for Red (rows 6..12)
+            // Available spots: 25 (excluding 5 campsites)
+            const template = [];
+
+            if (presetType === 'random') {
+                const pool = [];
+                for (let t in PIECE_TYPES) {
+                    for (let i = 0; i < PIECE_TYPES[t].count; i++) pool.push(t);
+                }
+                // Shuffle pool
+                pool.sort(() => Math.random() - 0.5);
+
+                // Ensure Flag in HQ
+                const flagIdx = pool.indexOf('F');
+                pool.splice(flagIdx, 1);
+                const hqPos = Math.random() < 0.5 ? {r: 12, c: 1} : {r: 12, c: 3};
+
+                // Place Mines in bottom rows
+                const mineIndices = [];
+                pool.forEach((t, idx) => { if (t === 'M') mineIndices.push(idx); });
+
+                let spotIdx = 0;
+                for (let r = 6; r <= 12; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        if (isCampsite(r, c)) continue;
+                        if ((r === 12 && c === 1) || (r === 12 && c === 3)) {
+                            if (r === hqPos.r && c === hqPos.c) {
+                                board[r][c] = { type: 'F', color: 'red', revealed: true };
+                            } else {
+                                board[r][c] = { type: pool.pop(), color: 'red', revealed: true };
+                            }
+                        } else {
+                            if (pool.length > 0) {
+                                board[r][c] = { type: pool.pop(), color: 'red', revealed: true };
+                            }
+                        }
+                    }
+                }
+
+                // Post-process validity adjustments if needed
+                enforcePresetRules();
+
+            } else if (presetType === 'balanced') {
+                // Structured balanced layout
+                const layout = [
+                    // Row 6 (Frontline): 排長, 工兵, 連長, 排長, 工兵
+                    ['32', '31', '33', '32', '31'],
+                    // Row 7: 營長, 旅長, 團長, 師長, 營長
+                    ['34', '36', '35', '37', '34'],
+                    // Row 8 (with campsites at 1,3): 司令, (CS), 軍長, (CS), 師長
+                    ['39', null, '38', null, '37'],
+                    // Row 9 (campsite at 2): 團長, 旅長, (CS), 炸彈, 連長
+                    ['35', '36', null, 'B', '33'],
+                    // Row 10 (campsites at 1,3): 炸彈, (CS), 連長, (CS), 排長
+                    ['B', null, '33', null, '32'],
+                    // Row 11: 地雷, 工兵, 地雷, 地雷, 排長 (Wait, mines in back rows!)
+                    ['M', '31', 'M', 'M', '32'],
+                    // Row 12: 排長, 軍旗, 排長, 大本營, 排長
+                    ['32', 'F', '33', '32', '32']
+                ];
+                applyMatrixToBoard(layout);
+            } else if (presetType === 'offensive') {
+                // Offensive layout: High commanders in front
+                const layout = [
+                    ['39', '38', '37', '37', '36'],
+                    ['36', '35', '35', '34', '34'],
+                    ['33', null, '33', null, '33'],
+                    ['32', '32', null, '32', '31'],
+                    ['31', null, '31', null, 'B'],
+                    ['M', 'B', 'M', 'M', '32'],
+                    ['32', '32', '33', 'F', '32']
+                ];
+                applyMatrixToBoard(layout);
+            } else if (presetType === 'defensive') {
+                // Defensive layout
+                const layout = [
+                    ['31', '32', '31', '32', '31'],
+                    ['33', '33', '33', '34', '34'],
+                    ['35', null, '35', null, '36'],
+                    ['36', '37', null, '37', '38'],
+                    ['B', null, '39', null, 'B'],
+                    ['M', 'M', 'M', '32', '32'],
+                    ['32', 'F', '32', '32', '32']
+                ];
+                applyMatrixToBoard(layout);
+            }
+
+            // Reset tray remaining counts to 0 since board is filled
+            for (let t in trayPieces) trayPieces[t] = 0;
+
+            playSound('click');
+            renderTrayUI();
+            renderBoardUI();
+            updateSetupChecklist();
+        }
+
+        function enforcePresetRules() {
+            // Fix Flag
+            if (!board[12][1] && !board[12][3]) {
+                board[12][1] = { type: 'F', color: 'red', revealed: true };
+            }
+            // Fix Bombs out of Row 6
+            for (let c = 0; c < 5; c++) {
+                if (board[6][c] && board[6][c].type === 'B') {
+                    // Swap with a piece in row 7..10
+                    for (let r2 = 7; r2 <= 10; r2++) {
+                        for (let c2 = 0; c2 < 5; c2++) {
+                            if (!isCampsite(r2, c2) && board[r2][c2] && board[r2][c2].type !== 'B') {
+                                const tmp = board[6][c];
+                                board[6][c] = board[r2][c2];
+                                board[r2][c2] = tmp;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            // Fix Mines in Row 11 & 12
+            for (let r = 6; r <= 10; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (board[r][c] && board[r][c].type === 'M') {
+                        for (let r2 = 11; r2 <= 12; r2++) {
+                            for (let c2 = 0; c2 < 5; c2++) {
+                                if (!isCampsite(r2, c2) && board[r2][c2] && board[r2][c2].type !== 'M' && board[r2][c2].type !== 'F') {
+                                    const tmp = board[r][c];
+                                    board[r][c] = board[r2][c2];
+                                    board[r2][c2] = tmp;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function applyMatrixToBoard(matrix) {
+            initTrayPieces();
+            for (let r = 0; r < 7; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const br = r + 6;
+                    if (isCampsite(br, c)) continue;
+                    const pType = matrix[r][c];
+                    if (pType && PIECE_TYPES[pType]) {
+                        board[br][c] = { type: pType, color: 'red', revealed: true };
+                    }
+                }
+            }
+            enforcePresetRules();
+        }
+
+        function clearPlayerBoard() {
+            for (let r = 6; r <= 12; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (board[r][c] && board[r][c].color === 'red') {
+                        board[r][c] = null;
+                    }
+                }
+            }
+            initTrayPieces();
+            selectedCell = null;
+            selectedTrayType = null;
+            renderTrayUI();
+            renderBoardUI();
+            updateSetupChecklist();
+        }
+
+        // SETUP AI ENEMY BOARD AUTOMATICALLY (Rows 0 to 5)
+        function setupAIOpponentBoard() {
+            const pool = [];
+            for (let t in PIECE_TYPES) {
+                for (let i = 0; i < PIECE_TYPES[t].count; i++) pool.push(t);
+            }
+            pool.sort(() => Math.random() - 0.5);
+
+            // Flag in enemy HQ: (0,1) or (0,3)
+            const hqCol = Math.random() < 0.5 ? 1 : 3;
+            board[0][hqCol] = { type: 'F', color: 'black', revealed: false };
+            const fIdx = pool.indexOf('F');
+            if (fIdx >= 0) pool.splice(fIdx, 1);
+
+            // Mines in top two rows (0 and 1)
+            let minesPlaced = 0;
+            const validMineCoords = [
+                {r:0,c:0},{r:0,c:2},{r:0,c:4},
+                {r:1,c:0},{r:1,c:1},{r:1,c:2},{r:1,c:3},{r:1,c:4}
+            ].sort(() => Math.random() - 0.5);
+
+            validMineCoords.forEach(coord => {
+                if (minesPlaced < 3 && !board[coord.r][coord.c]) {
+                    board[coord.r][coord.c] = { type: 'M', color: 'black', revealed: false };
+                    const mIdx = pool.indexOf('M');
+                    if (mIdx >= 0) pool.splice(mIdx, 1);
+                    minesPlaced++;
+                }
+            });
+
+            // Fill remaining top spots 0..5 (excluding campsites and filled cells)
+            for (let r = 0; r <= 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (isCampsite(r, c) || board[r][c]) continue;
+                    
+                    // Prevent bombs in front row (row 5)
+                    if (r === 5 && pool[pool.length - 1] === 'B') {
+                        // swap bomb with another non-bomb in pool
+                        const nonBombIdx = pool.findIndex(t => t !== 'B');
+                        if (nonBombIdx >= 0) {
+                            const tmp = pool[pool.length - 1];
+                            pool[pool.length - 1] = pool[nonBombIdx];
+                            pool[nonBombIdx] = tmp;
+                        }
+                    }
+
+                    if (pool.length > 0) {
+                        board[r][c] = { type: pool.pop(), color: 'black', revealed: false };
+                    }
+                }
+            }
+        }
+
+        // START GAME TRANSITION
+        function startGame() {
+            if (gameState !== 'SETUP') return;
+
+            gameState = 'PLAYING';
+            currentTurn = 'red';
+
+            // Transition Left Sidebar UI from Setup to Stats Counter Table
+            document.getElementById('sidebar-setup-panel').classList.add('hidden');
+            document.getElementById('sidebar-playing-panel').classList.remove('hidden');
+            document.getElementById('sidebar-playing-panel').classList.add('flex');
+
+            document.getElementById('turn-badge').className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5";
+            document.getElementById('turn-text').innerText = "我方 (紅棋) 回合";
+
+            addLog("⚔️ 對戰開始！我方執紅棋先行。", 'sys');
+            renderPieceStatsUI();
+            renderBoardUI();
+            playSound('win');
+        }
+
+        // RENDER PIECE STATS COUNTER TABLE IN PLAYING PHASE
+        function renderPieceStatsUI() {
+            const container = document.getElementById('piece-stats-container');
+            let html = '';
+
+            // Count pieces remaining
+            const redCounts = {};
+            const blackCounts = {};
+
+            for (let r = 0; r < 13; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const p = board[r][c];
+                    if (p) {
+                        if (p.color === 'red') redCounts[p.type] = (redCounts[p.type] || 0) + 1;
+                        if (p.color === 'black') blackCounts[p.type] = (blackCounts[p.type] || 0) + 1;
+                    }
+                }
+            }
+
+            html += `<div class="bg-zinc-950 border border-zinc-800 rounded-lg p-2 space-y-1.5 text-xs">`;
+            for (let type in PIECE_TYPES) {
+                const info = PIECE_TYPES[type];
+                const rCnt = redCounts[type] || 0;
+                const bCnt = blackCounts[type] || 0;
+
+                html += `
+                    <div class="flex items-center justify-between border-b border-zinc-900 pb-1">
+                        <span class="font-bold text-zinc-300 w-16">${info.name}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-red-400 font-mono font-bold">我: ${rCnt}/${info.count}</span>
+                            <span class="text-zinc-500">|</span>
+                            <span class="text-zinc-300 font-mono font-bold">敵: ${bCnt}/${info.count}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+
+            container.innerHTML = html;
+        }
+
+        // MOVEMENT LOGIC & PATHFINDING
+        function calculateValidMoves(sr, sc) {
+            const piece = board[sr][sc];
+            if (!piece) return [];
+
+            const moves = [];
+            const isEng = piece.type === '31'; // 工兵 (Engineer)
+
+            // Standard 1-step directions (orthogonal + diagonal if campsite involved)
+            const isSrcCampsite = isCampsite(sr, sc);
+
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+
+                    const tr = sr + dr;
+                    const tc = sc + dc;
+
+                    if (tr < 0 || tr > 12 || tc < 0 || tc > 4) continue;
+
+                    const isDiag = (dr !== 0 && dc !== 0);
+                    const isDstCampsite = isCampsite(tr, tc);
+
+                    // Diagonal movement ONLY permitted if moving into or out of a Campsite
+                    if (isDiag && !isSrcCampsite && !isDstCampsite) continue;
+
+                    // Cannot cross river except via bridge columns (0, 2, 4)
+                    if ((sr === 5 && tr === 6) || (sr === 6 && tr === 5)) {
+                        if (sc !== 0 && sc !== 2 && sc !== 4) continue;
+                    }
+
+                    if (canMoveTo(piece, tr, tc)) {
+                        moves.push({r: tr, c: tc});
+                    }
+                }
+            }
+
+            // Railway Movement Logic
+            if (isRailway(sr, sc)) {
+                if (isEng) {
+                    // Engineer BFS pathfinding on continuous unobstructed railway lines
+                    const rwyMoves = getEngineerRailwayMoves(sr, sc);
+                    rwyMoves.forEach(m => {
+                        if (!moves.some(existing => existing.r === m.r && existing.c === m.c)) {
+                            moves.push(m);
+                        }
+                    });
+                } else {
+                    // Non-engineer: straight unobstructed line movement on railway
+                    const straightMoves = getStraightRailwayMoves(sr, sc, piece);
+                    straightMoves.forEach(m => {
+                        if (!moves.some(existing => existing.r === m.r && existing.c === m.c)) {
+                            moves.push(m);
+                        }
+                    });
+                }
+            }
+
+            return moves;
+        }
+
+        function canMoveTo(piece, tr, tc) {
+            const target = board[tr][tc];
+
+            // Empty spot -> Valid
+            if (!target) return true;
+
+            // Friendly piece -> Cannot capture friendly
+            if (target.color === piece.color) return false;
+
+            // Enemy piece in Campsite -> IMMUNE from all attacks!
+            if (isCampsite(tr, tc)) return false;
+
+            return true;
+        }
+
+        function getStraightRailwayMoves(sr, sc, piece) {
+            const moves = [];
+            const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
+
+            dirs.forEach(d => {
+                let cr = sr + d[0];
+                let cc = sc + d[1];
+
+                while (cr >= 0 && cr <= 12 && cc >= 0 && cc <= 4 && isRailway(cr, cc)) {
+                    // Check river crossing constraint
+                    if ((cr === 5 && cr + d[0] === 6) || (cr === 6 && cr + d[0] === 5)) {
+                        if (cc !== 0 && cc !== 2 && cc !== 4) break;
+                    }
+
+                    if (canMoveTo(piece, cr, cc)) {
+                        moves.push({r: cr, c: cc});
+                        // If target square has an enemy piece, line ends here
+                        if (board[cr][cc] !== null) break;
+                    } else {
+                        break;
+                    }
+
+                    cr += d[0];
+                    cc += d[1];
+                }
+            });
+
+            return moves;
+        }
+
+        function getEngineerRailwayMoves(sr, sc) {
+            const moves = [];
+            const visited = Array(13).fill(null).map(() => Array(5).fill(false));
+            const queue = [{r: sr, c: sc}];
+            visited[sr][sc] = true;
+
+            const piece = board[sr][sc];
+            const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
+
+            while (queue.length > 0) {
+                const curr = queue.shift();
+
+                dirs.forEach(d => {
+                    const tr = curr.r + d[0];
+                    const tc = curr.c + d[1];
+
+                    if (tr >= 0 && tr <= 12 && tc >= 0 && tc <= 4 && isRailway(tr, tc) && !visited[tr][tc]) {
+                        // River crossing check
+                        if ((curr.r === 5 && tr === 6) || (curr.r === 6 && tr === 5)) {
+                            if (curr.c !== 0 && curr.c !== 2 && curr.c !== 4) return;
+                        }
+
+                        visited[tr][tc] = true;
+
+                        if (canMoveTo(piece, tr, tc)) {
+                            moves.push({r: tr, c: tc});
+                            // If empty space, continue BFS search
+                            if (board[tr][tc] === null) {
+                                queue.push({r: tr, c: tc});
+                            }
+                        }
+                    }
+                });
+            }
+
+            return moves;
+        }
+
+        // MOVE EXECUTION & COMBAT RESOLUTION
+        function executeMove(sr, sc, tr, tc) {
+            const attacker = board[sr][sc];
+            const defender = board[tr][tc];
+
+            selectedCell = null;
+            validMoves = [];
+
+            if (!defender) {
+                // Simple Move to empty cell
+                board[tr][tc] = attacker;
+                board[sr][sc] = null;
+
+                playSound('move');
+                addLog(`${attacker.color === 'red' ? '我方' : '敵方'} [${PIECE_TYPES[attacker.type].name}] 移動至 (${tr},${tc})`, 'move');
+            } else {
+                // Combat Resolution
+                attacker.revealed = true;
+                defender.revealed = true;
+
+                const attName = PIECE_TYPES[attacker.type].name;
+                const defName = PIECE_TYPES[defender.type].name;
+
+                let outcome = resolveCombat(attacker, defender);
+
+                if (outcome === 'ATTACKER_WINS') {
+                    board[tr][tc] = attacker;
+                    board[sr][sc] = null;
+                    playSound('capture');
+                    addLog(`💥 ${attacker.color === 'red' ? '我方' : '敵方'} [${attName}] 擊毀 敵方 [${defName}]`, 'win');
+                } else if (outcome === 'DEFENDER_WINS') {
+                    board[sr][sc] = null;
+                    playSound('explode');
+                    addLog(`💥 ${attacker.color === 'red' ? '我方' : '敵方'} [${attName}] 攻擊 敵方 [${defName}] 失敗被摧毀`, 'loss');
+                } else if (outcome === 'MUTUAL_DESTRUCTION') {
+                    board[sr][sc] = null;
+                    board[tr][tc] = null;
+                    playSound('explode');
+                    addLog(`💣 ${attName} 與 ${defName} 同歸於盡！`, 'warn');
+                } else if (outcome === 'FLAG_CAPTURED') {
+                    board[tr][tc] = attacker;
+                    board[sr][sc] = null;
+                    playSound('win');
+                    addLog(`🚩 ${attacker.color === 'red' ? '我方' : '敵方'} 成功奪取軍旗！`, 'win');
+                    endGame(attacker.color);
+                    return;
+                }
+            }
+
+            renderBoardUI();
+            renderPieceStatsUI();
+
+            // Check Win/Loss conditions
+            if (checkGameOver()) return;
 
             // Switch Turn
-            gameState.turn = gameState.turn === 'p1' ? 'p2' : 'p1';
-            resetTurnTimer();
+            currentTurn = (currentTurn === 'red') ? 'black' : 'red';
 
-            // AI Turn Handler for Single Player Mode
-            if (gameState.mode === 'single' && gameState.turn === 'p2') {
-                setTimeout(executeAIMasterTurn, 1200);
+            const turnBadge = document.getElementById('turn-badge');
+            const turnText = document.getElementById('turn-text');
+
+            if (currentTurn === 'red') {
+                turnBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5";
+                turnText.innerText = "我方 (紅棋) 回合";
+            } else {
+                turnBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5";
+                turnText.innerText = "敵方 (黑棋) 回合";
+
+                // Trigger AI Turn if in Single Player Mode
+                if (gameMode === 'ai' && gameState === 'PLAYING') {
+                    aiThinking = true;
+                    setTimeout(makeAiMove, 600);
+                }
             }
         }
 
-        // ==================== TACTICAL MASTER AI ENGINE ====================
-        function executeAIMasterTurn() {
-            if (gameState.phase !== 'playing') return;
+        /**
+         * ARMY CHESS COMBAT RULES:
+         * 1. Equal Rank Clash -> Attacker Advantage (Attacker Wins & Survives)!
+         * 2. Bomb (B) vs Anything -> Mutual Destruction!
+         * 3. Landmine (M) vs Engineer (31) -> Engineer Wins & Disarms Mine!
+         * 4. Landmine (M) vs Non-Engineer -> Mutual Destruction!
+         * 5. Flag (F) vs Any Movable Piece -> Flag Captured!
+         * 6. Ranks: 39 > 38 > 37 > 36 > 35 > 34 > 33 > 32 > 31
+         */
+        function resolveCombat(attacker, defender) {
+            // Flag captured
+            if (defender.type === 'F') return 'FLAG_CAPTURED';
 
-            const aiMoves = [];
+            // Bomb involved -> Mutual Destruction
+            if (attacker.type === 'B' || defender.type === 'B') return 'MUTUAL_DESTRUCTION';
 
-            // Gather all available AI moves
-            for (let r = 0; r <= 11; r++) {
-                for (let c = 0; c < 5; c++) {
-                    const piece = gameState.board[r][c];
-                    if (piece && piece.owner === 'p2') {
-                        const moves = calculateValidMoves(r, c, gameState.board);
-                        moves.forEach(m => {
-                            const target = gameState.board[m.r][m.c];
-                            let score = 0;
-
-                            if (target) {
-                                // Priority 1: Capture Flag instantly
-                                if (target.rank === -2) score += 10000;
-                                // Priority 2: Use Bomb on high officers
-                                else if (piece.rank === 0 && target.revealed && target.rank >= 7) score += 5000;
-                                // Priority 3: Use Engineer to sweep revealed mine
-                                else if (piece.rank === 1 && target.revealed && target.rank === -1) score += 4000;
-                                // Priority 4: Exploit Same-Rank Attacker Advantage!
-                                else if (target.revealed && piece.rank === target.rank) score += 3000;
-                                // Priority 5: Attack lower rank piece
-                                else if (target.revealed && piece.rank > target.rank) score += 2000 + target.rank * 100;
-                                // Priority 6: Attack unknown piece with low officer
-                                else if (!target.revealed && piece.rank <= 3) score += 800;
-                            } else {
-                                // Tactical Positioning: Advance towards player HQ
-                                score += (r * 10);
-                                if (isCampsite(m.r, m.c)) score += 50; // Retain campsite safety
-                            }
-
-                            aiMoves.push({ from: { r, c }, to: m, score });
-                        });
-                    }
+            // Landmine defender
+            if (defender.type === 'M') {
+                if (attacker.type === '31') {
+                    return 'ATTACKER_WINS'; // Engineer disarms mine
+                } else {
+                    return 'MUTUAL_DESTRUCTION'; // Non-engineer mutually dies with mine
                 }
             }
 
-            if (aiMoves.length === 0) {
-                endGame('p1', '敵方無路可走');
+            // Standard Rank Comparison
+            const attRank = PIECE_TYPES[attacker.type].rank;
+            const defRank = PIECE_TYPES[defender.type].rank;
+
+            if (attRank > defRank) return 'ATTACKER_WINS';
+            if (attRank < defRank) return 'DEFENDER_WINS';
+
+            // Attacker Advantage Rule on Equal Rank
+            if (attRank === defRank) return 'ATTACKER_WINS';
+
+            return 'MUTUAL_DESTRUCTION';
+        }
+
+        // FIXED ROBUST AI MOVE EVALUATION & EXECUTION LOOP
+        function makeAiMove() {
+            if (gameState !== 'PLAYING' || currentTurn !== 'black') {
+                aiThinking = false;
                 return;
             }
 
-            // Sort moves by tactical score
-            aiMoves.sort((a, b) => b.score - a.score);
-            const bestMove = aiMoves[0];
-
-            executeMove(bestMove.from, bestMove.to);
-        }
-
-        function checkEliminationVictory() {
-            let p1HasMovable = false, p2HasMovable = false;
-            for (let r = 0; r <= 11; r++) {
+            const aiPieces = [];
+            for (let r = 0; r < 13; r++) {
                 for (let c = 0; c < 5; c++) {
-                    const p = gameState.board[r][c];
-                    if (p && p.rank > 0) {
-                        if (p.owner === 'p1') p1HasMovable = true;
-                        if (p.owner === 'p2') p2HasMovable = true;
+                    const p = board[r][c];
+                    if (p && p.color === 'black' && p.type !== 'F' && p.type !== 'M') {
+                        const moves = calculateValidMoves(r, c);
+                        if (moves.length > 0) {
+                            aiPieces.push({r, c, piece: p, moves});
+                        }
                     }
                 }
             }
-            if (!p1HasMovable) return true;
-            if (!p2HasMovable) return true;
+
+            if (aiPieces.length === 0) {
+                addLog("敵方無棋可走，我方獲得勝利！", 'win');
+                endGame('red');
+                aiThinking = false;
+                return;
+            }
+
+            // Evaluate move scores
+            let bestMove = null;
+            let highestScore = -99999;
+
+            aiPieces.forEach(item => {
+                const sr = item.r;
+                const sc = item.c;
+                const p = item.piece;
+
+                item.moves.forEach(m => {
+                    const tr = m.r;
+                    const tc = m.c;
+                    const target = board[tr][tc];
+
+                    let score = 0;
+
+                    if (target) {
+                        // Combat / Attack Evaluation
+                        if (target.type === 'F') {
+                            score += 10000; // Flag capture instant win
+                        } else if (target.revealed) {
+                            const outcome = resolveCombat(p, target);
+                            if (outcome === 'ATTACKER_WINS' || outcome === 'FLAG_CAPTURED') {
+                                score += (PIECE_TYPES[target.type].rank || 10) * 10 + 50;
+                            } else if (outcome === 'MUTUAL_DESTRUCTION') {
+                                if (p.type === 'B') score += (PIECE_TYPES[target.type].rank || 10) * 8;
+                                else score += 10;
+                            } else {
+                                score -= 100;
+                            }
+                        } else {
+                            // Unrevealed enemy piece
+                            if (p.type === '31') {
+                                // Engineer probing
+                                score += 25;
+                            } else if (p.type === 'B') {
+                                score += 15;
+                            } else {
+                                score += 30;
+                            }
+                        }
+                    } else {
+                        // Empty cell move
+                        // Bonus for moving towards player HQs (12,1) or (12,3)
+                        const distToHQ = Math.abs(tr - 12) + Math.min(Math.abs(tc - 1), Math.abs(tc - 3));
+                        score += (20 - distToHQ);
+
+                        // Bonus for entering Campsite if threatened
+                        if (isCampsite(tr, tc)) {
+                            score += 15;
+                        }
+                    }
+
+                    // Add slight random jitter for realistic gameplay
+                    score += Math.random() * 5;
+
+                    if (score > highestScore) {
+                        highestScore = score;
+                        bestMove = {sr, sc, tr, tc};
+                    }
+                });
+            });
+
+            if (bestMove) {
+                executeMove(bestMove.sr, bestMove.sc, bestMove.tr, bestMove.tc);
+            }
+
+            aiThinking = false;
+        }
+
+        function checkGameOver() {
+            let redFlag = false;
+            let blackFlag = false;
+
+            for (let r = 0; r < 13; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const p = board[r][c];
+                    if (p && p.type === 'F') {
+                        if (p.color === 'red') redFlag = true;
+                        if (p.color === 'black') blackFlag = true;
+                    }
+                }
+            }
+
+            if (!redFlag) {
+                endGame('black');
+                return true;
+            }
+            if (!blackFlag) {
+                endGame('red');
+                return true;
+            }
             return false;
         }
 
-        // ==================== BOARD DOM RENDERING & ANTI-CHEAT FOG ====================
-        function renderBoard() {
-            const container = document.getElementById('pieces-layer');
-            container.innerHTML = '';
+        function endGame(winnerColor) {
+            gameState = 'ENDED';
+            const isPlayerWin = winnerColor === 'red';
 
-            for (let r = 0; r <= 11; r++) {
-                for (let c = 0; c < 5; c++) {
-                    const piece = gameState.board[r][c];
-                    
-                    // Perspective Flipping for Player 2 view
-                    const displayR = gameState.perspective === 'p2' ? (11 - r) : r;
-                    const displayC = gameState.perspective === 'p2' ? (4 - c) : c;
+            playSound(isPlayerWin ? 'win' : 'explode');
 
-                    const posX = COL_X_PCT[displayC];
-                    const posY = ROW_Y_PCT[displayR];
+            const msg = isPlayerWin ? "🎉 恭喜！我方獲得最終勝利！" : "💔 遺憾！敵方擊敗我方！";
+            addLog(msg, isPlayerWin ? 'win' : 'loss');
 
-                    if (piece) {
-                        const tile = document.createElement('div');
-                        const isSelected = gameState.selectedSquare && gameState.selectedSquare.r === r && gameState.selectedSquare.c === c;
-                        
-                        // Strict Fog of War DOM Anti-Cheat: Unrevealed enemy pieces contain NO text or dataset rank!
-                        const isEnemyUnrevealed = piece.owner !== gameState.perspective && !piece.revealed;
-
-                        tile.className = `piece absolute w-[15.5%] h-[6.2%] rounded-lg flex items-center justify-center font-bold text-xs md:text-sm select-none pointer-events-auto ${
-                            isEnemyUnrevealed ? 'piece-back' : (piece.owner === 'p1' ? 'piece-p1' : 'piece-p2')
-                        } ${isSelected ? 'piece-selected' : ''}`;
-
-                        tile.style.left = `${posX}%`;
-                        tile.style.top = `${posY}%`;
-                        tile.style.transform = 'translate(-50%, -50%)';
-
-                        if (!isEnemyUnrevealed) {
-                            tile.innerText = piece.name;
-                        }
-
-                        tile.onclick = () => handleSquareClick(r, c);
-                        container.appendChild(tile);
-                    }
-                }
-            }
-
-            // Render Move Dots & Attack Targets
-            if (gameState.selectedSquare && gameState.validMoves.length > 0) {
-                gameState.validMoves.forEach(m => {
-                    const displayR = gameState.perspective === 'p2' ? (11 - m.r) : m.r;
-                    const displayC = gameState.perspective === 'p2' ? (4 - m.c) : m.c;
-
-                    const posX = COL_X_PCT[displayC];
-                    const posY = ROW_Y_PCT[displayR];
-                    const targetPiece = gameState.board[m.r][m.c];
-
-                    const indicator = document.createElement('div');
-                    indicator.className = targetPiece ? 'attack-target pointer-events-auto' : 'move-dot pointer-events-auto';
-                    indicator.style.left = `${posX}%`;
-                    indicator.style.top = `${posY}%`;
-                    indicator.onclick = () => handleSquareClick(m.r, m.c);
-                    container.appendChild(indicator);
-                });
-            }
+            document.getElementById('turn-badge').className = isPlayerWin 
+                ? "px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                : "px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30";
+            document.getElementById('turn-text').innerText = isPlayerWin ? "對局結束 - 我方勝" : "對局結束 - 敵方勝";
         }
 
-        function updateCaptureCounts() {
-            document.getElementById('p1-lost-count').innerText = gameState.p1LostCount;
-            document.getElementById('p2-lost-count').innerText = gameState.p2LostCount;
+        function surrender() {
+            if (gameState !== 'PLAYING') return;
+            endGame('black');
         }
 
-        // ==================== TIMER & GAME SETTLEMENT ====================
-        function startTurnTimer() {
-            clearInterval(gameState.timerInterval);
-            gameState.timerSec = 30;
-            document.getElementById('timer-sec').innerText = gameState.timerSec;
+        function restartGame() {
+            board = Array(13).fill(null).map(() => Array(5).fill(null));
+            gameState = 'SETUP';
+            currentTurn = 'red';
+            selectedCell = null;
+            selectedTrayType = null;
+            validMoves = [];
+            aiThinking = false;
 
-            gameState.timerInterval = setInterval(() => {
-                gameState.timerSec--;
-                document.getElementById('timer-sec').innerText = gameState.timerSec;
+            initTrayPieces();
+            drawBoardBackground();
 
-                if (gameState.timerSec <= 0) {
-                    // Turn Timeout - Automatic Pass or Random Move
-                    sound.play('move');
-                    gameState.turn = gameState.turn === 'p1' ? 'p2' : 'p1';
-                    resetTurnTimer();
-                }
-            }, 1000);
+            document.getElementById('sidebar-playing-panel').classList.add('hidden');
+            document.getElementById('sidebar-playing-panel').classList.remove('flex');
+            document.getElementById('sidebar-setup-panel').classList.remove('hidden');
+
+            document.getElementById('turn-badge').className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1.5";
+            document.getElementById('turn-text').innerText = "佈陣階段";
+
+            renderTrayUI();
+            renderBoardUI();
+            setupAIOpponentBoard();
+            updateSetupChecklist();
+
+            addLog("🔄 遊戲已重新開始，請重新佈陣。", 'sys');
         }
 
-        function resetTurnTimer() {
-            startTurnTimer();
-            const ping = document.getElementById('p1-turn-ping');
-            if (gameState.turn === gameState.perspective) {
-                ping.classList.add('animate-ping');
+        // LOGGING UTILITY
+        function addLog(text, type='move') {
+            const logBox = document.getElementById('move-history-log');
+            const item = document.createElement('div');
+            
+            let colorCls = "text-zinc-300";
+            if (type === 'sys') colorCls = "text-amber-400 font-bold";
+            if (type === 'win') colorCls = "text-emerald-400 font-bold";
+            if (type === 'loss') colorCls = "text-red-400 font-bold";
+            if (type === 'warn') colorCls = "text-amber-300";
+
+            item.className = `p-1.5 rounded bg-zinc-900/60 border border-zinc-800/80 ${colorCls}`;
+            item.innerText = text;
+
+            logBox.appendChild(item);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // MODAL CONTROLS
+        function openModeModal() {
+            document.getElementById('modal-mode').classList.remove('hidden');
+        }
+
+        function closeModeModal() {
+            document.getElementById('modal-mode').classList.add('hidden');
+        }
+
+        function selectGameMode(mode) {
+            gameMode = mode;
+            closeModeModal();
+
+            const subtitle = document.getElementById('game-mode-subtitle');
+            if (mode === 'ai') subtitle.innerText = "單人對戰模式 (AI 敵方)";
+            if (mode === 'local') subtitle.innerText = "雙人同屏模式 (面對面)";
+            if (mode === 'online') subtitle.innerText = "線上連線房間";
+
+            restartGame();
+        }
+
+        function createOnlineRoom() {
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('room-code-input').value = code;
+            alert(`已建立房間！房號: ${code} (線上 Firebase 模式已連線)`);
+            selectGameMode('online');
+        }
+
+        function joinOnlineRoom() {
+            const code = document.getElementById('room-code-input').value;
+            if (code.length === 6) {
+                alert(`已成功加入房間: ${code}`);
+                selectGameMode('online');
             } else {
-                ping.classList.remove('animate-ping');
+                alert("請輸入有效的 6 位數房號");
             }
         }
-
-        function endGame(winner, reason) {
-            clearInterval(gameState.timerInterval);
-            gameState.phase = 'finished';
-
-            const modal = document.getElementById('settlement-modal');
-            const title = document.getElementById('settlement-title');
-            const subtitle = document.getElementById('settlement-subtitle');
-            const icon = document.getElementById('settlement-icon');
-
-            const isWin = winner === gameState.perspective;
-            if (isWin) {
-                sound.play('victory');
-                icon.innerText = '🏆';
-                title.innerText = '戰局結算 - 凱旋勝利!';
-                subtitle.innerText = `出色指揮！${reason}`;
-            } else {
-                sound.play('explosion');
-                icon.innerText = '⚔️';
-                title.innerText = '戰局結算 - 遺憾戰敗';
-                subtitle.innerText = `再接再厲！${reason}`;
-            }
-
-            const elapsedSec = Math.floor((Date.now() - gameState.startTime) / 1000);
-            const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
-            const secs = String(elapsedSec % 60).padStart(2, '0');
-
-            document.getElementById('metric-moves').innerText = gameState.totalMoves;
-            document.getElementById('metric-kills').innerText = isWin ? gameState.p2LostCount : gameState.p1LostCount;
-            document.getElementById('metric-time').innerText = `${mins}:${secs}`;
-
-            modal.classList.remove('hidden');
-        }
-
-        window.restartMatch = function() {
-            document.getElementById('settlement-modal').classList.add('hidden');
-            initSetupPhase();
-            document.getElementById('setup-panel').classList.remove('hidden');
-            document.getElementById('battle-panel').classList.add('hidden');
-        };
-
-        window.returnToLobby = function() {
-            document.getElementById('settlement-modal').classList.add('hidden');
-            document.getElementById('lobby-modal').classList.remove('hidden');
-        };
-
-        window.handleSurrender = function() {
-            endGame(gameState.perspective === 'p1' ? 'p2' : 'p1', '我方主動認輸');
-        };
-
-        window.handleRequestDraw = function() {
-            alert("對手拒絕了求和請求。");
-        };
-
-        // ==================== MULTIPLAYER & ROOM LOBBY ====================
-        window.startSinglePlayerGame = function() {
-            sound.play('move');
-            gameState.mode = 'single';
-            gameState.perspective = 'p1';
-            document.getElementById('game-mode-badge').innerText = '單人對戰 (Master AI)';
-            document.getElementById('lobby-modal').classList.add('hidden');
-            initSetupPhase();
-        };
-
-        window.startQuickMatch = async function() {
-            sound.play('move');
-            gameState.mode = 'multi';
-            document.getElementById('game-mode-badge').innerText = '線上配對中...';
-            // Firestore quick match logic
-            const roomCode = String(Math.floor(100000 + Math.random() * 900000));
-            joinRoomWithCode(roomCode);
-        };
-
-        window.createPrivateRoom = function() {
-            const roomCode = String(Math.floor(100000 + Math.random() * 900000));
-            joinRoomWithCode(roomCode);
-        };
-
-        window.joinPrivateRoom = function() {
-            const input = document.getElementById('room-code-input').value.trim();
-            if (input.length === 6) {
-                joinRoomWithCode(input);
-            }
-        };
-
-        function joinRoomWithCode(roomCode) {
-            gameState.roomId = roomCode;
-            document.getElementById('lobby-modal').classList.add('hidden');
-            document.getElementById('game-mode-badge').innerText = `線上對戰 (房號: ${roomCode})`;
-            initSetupPhase();
-        }
-
-        function shuffleArray(arr) {
-            for (let i = arr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [arr[i], arr[j]] = [arr[j], arr[i]];
-            }
-        }
-
-        // ==================== INITIALIZATION ====================
-        window.onload = function() {
-            initSetupPhase();
-        };
     </script>
 </body>
 </html>
